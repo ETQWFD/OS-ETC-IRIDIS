@@ -1,0 +1,1 @@
+{"repo": "csukuangfj/sherpa-onnx-zipformer-ctc-zh-int8-2025-07-03", "revision": "d5f3d5789fb467496dbef554e3fb6f177a65bc5a", "files": [{"path": "model.int8.onnx", "size": 367074356}, {"path": "tokens.txt", "size": 13366}]}

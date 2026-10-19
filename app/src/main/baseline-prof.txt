@@ -1,0 +1,2 @@
+HSPLcom/iris/localai/**;->**(**)**
+Lcom/iris/localai/**;

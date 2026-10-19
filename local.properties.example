@@ -1,0 +1,6 @@
+# Copy to local.properties (never commit it).
+sdk.dir=/path/to/Android/Sdk
+# Optional: a specific NDK (r27+). On arm64 Linux build hosts use an arm64-host NDK build.
+#ndk.path=/path/to/android-ndk-r30
+# Optional: CMake >= 3.22 if not installed through the SDK manager (directory containing bin/cmake)
+#cmake.dir=/usr/local

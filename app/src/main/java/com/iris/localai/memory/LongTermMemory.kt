@@ -1,0 +1,241 @@
+package com.iris.localai.memory
+
+import com.iris.localai.util.TokenEstimator
+import kotlinx.serialization.Serializable
+import java.io.File
+
+/** The two bounded memory documents (Hermes style). */
+enum class MemoryTarget(val fileName: String, val label: String, val hint: String) {
+    USER("USER.md", "关于你", "你的身份、偏好、习惯（由智能体记录或你自己填写）"),
+    MEMORY("MEMORY.md", "记住的事", "事实、约定、学到的经验");
+
+    companion object {
+        fun parse(s: String?): MemoryTarget? = when (s?.trim()?.lowercase()?.removeSuffix(".md")) {
+            "user", "user_profile", "profile", "about_user" -> USER
+            "memory", "memories", "notes", "facts", null, "" -> MEMORY
+            else -> null
+        }
+    }
+}
+
+/** Result of one memory edit: the new document, or an error the model can act on. */
+sealed interface MemoryEdit {
+    data class Ok(val text: String, val message: String) : MemoryEdit
+    data class Err(val message: String) : MemoryEdit
+}
+
+/**
+ * add / replace / remove on one document, one entry per line ("- …"). Pure: the cap is checked
+ * before anything is written, so a document can never grow past [cap] characters.
+ */
+object MemoryOps {
+    const val CAP = 1500
+    private const val ENTRY_MAX = 300
+
+    fun entries(doc: String): List<String> = doc.lines().map { it.trim() }.filter { it.isNotEmpty() }
+
+    private fun clean(entry: String): String =
+        entry.replace(Regex("\\s+"), " ").trim().removePrefix("- ").removePrefix("* ").trim()
+
+    private fun key(s: String) = s.lowercase().replace(Regex("[\\s\\p{Punct}，。！？；：、]+"), "")
+
+    private fun join(lines: List<String>) = lines.joinToString("\n")
+
+    fun add(doc: String, entry: String, cap: Int = CAP): MemoryEdit {
+        val e = clean(entry)
+        if (e.isEmpty()) return MemoryEdit.Err("content is empty")
+        if (e.length > ENTRY_MAX) return MemoryEdit.Err("entry too long (${e.length} chars, max $ENTRY_MAX); keep it to one short fact")
+        val lines = entries(doc)
+        if (lines.any { key(it).contains(key(e)) }) return MemoryEdit.Err("already saved: nothing changed")
+        val next = join(lines + "- $e")
+        if (next.length > cap) {
+            return MemoryEdit.Err("memory is full (${doc.length}/$cap chars). Use replace to merge entries or remove an outdated one first")
+        }
+        return MemoryEdit.Ok(next, "added (${next.length}/$cap chars)")
+    }
+
+    fun replace(doc: String, old: String, new: String, cap: Int = CAP): MemoryEdit {
+        val e = clean(new)
+        if (e.isEmpty()) return MemoryEdit.Err("new content is empty; use remove to delete an entry")
+        if (e.length > ENTRY_MAX) return MemoryEdit.Err("entry too long (${e.length} chars, max $ENTRY_MAX)")
+        val lines = entries(doc)
+        val i = find(lines, old) ?: return MemoryEdit.Err(notFound(lines, old))
+        val next = join(lines.toMutableList().also { it[i] = "- $e" })
+        if (next.length > cap) return MemoryEdit.Err("would exceed the cap (${next.length}/$cap chars); shorten it")
+        return MemoryEdit.Ok(next, "replaced (${next.length}/$cap chars)")
+    }
+
+    fun remove(doc: String, old: String): MemoryEdit {
+        val lines = entries(doc)
+        val i = find(lines, old) ?: return MemoryEdit.Err(notFound(lines, old))
+        val next = join(lines.toMutableList().also { it.removeAt(i) })
+        return MemoryEdit.Ok(next, "removed (${next.length}/$CAP chars)")
+    }
+
+    /** Index of the single line containing [old]; null when none or several match. */
+    private fun find(lines: List<String>, old: String): Int? {
+        val o = old.trim().removePrefix("- ").trim()
+        if (o.isEmpty()) return null
+        val hits = lines.indices.filter { lines[it].contains(o, ignoreCase = true) }
+        return hits.singleOrNull()
+    }
+
+    private fun notFound(lines: List<String>, old: String): String {
+        val o = old.trim().removePrefix("- ").trim()
+        val n = if (o.isEmpty()) 0 else lines.count { it.contains(o, ignoreCase = true) }
+        return if (n > 1) "old text matches $n entries; quote more of the entry" else "no entry contains \"${o.take(60)}\""
+    }
+
+    /** Text the user typed in settings: trimmed to the cap at a line boundary when possible. */
+    fun capUserText(text: String, cap: Int = CAP): String {
+        val t = text.trim()
+        if (t.length <= cap) return t
+        val cut = t.take(cap)
+        val nl = cut.lastIndexOf('\n')
+        return (if (nl > cap / 2) cut.substring(0, nl) else cut).trimEnd()
+    }
+}
+
+/** USER.md + MEMORY.md in app-private storage, outside the agent workspace (file tools can't reach it). */
+class MemoryDocs(private val dir: File, val cap: Int = MemoryOps.CAP) {
+    private val lock = Any()
+    private val cache = HashMap<MemoryTarget, String>()
+
+    fun read(t: MemoryTarget): String = synchronized(lock) {
+        cache.getOrPut(t) { File(dir, t.fileName).takeIf { it.isFile }?.readText(Charsets.UTF_8)?.trim() ?: "" }
+    }
+
+    /** Both documents empty (cached after the first read). */
+    fun isEmpty(): Boolean = MemoryTarget.entries.all { read(it).isBlank() }
+
+    fun write(t: MemoryTarget, text: String) = synchronized(lock) {
+        cache.remove(t)
+        dir.mkdirs()
+        val f = File(dir, t.fileName)
+        val tmp = File(dir, t.fileName + ".tmp")
+        tmp.writeText(MemoryOps.capUserText(text, cap), Charsets.UTF_8)
+        if (!tmp.renameTo(f)) { f.writeText(tmp.readText(Charsets.UTF_8), Charsets.UTF_8); tmp.delete() }
+    }
+
+    fun clear() = synchronized(lock) { cache.clear(); MemoryTarget.entries.forEach { File(dir, it.fileName).delete() } }
+
+    /** Read-modify-write under one lock. */
+    fun edit(t: MemoryTarget, op: (String) -> MemoryEdit): MemoryEdit = synchronized(lock) {
+        val r = op(read(t))
+        if (r is MemoryEdit.Ok) write(t, r.text)
+        r
+    }
+
+    /** The frozen snapshot for a new conversation ("" when both documents are empty). */
+    fun snapshot(): String = MemoryPrompt.snapshot(read(MemoryTarget.USER), read(MemoryTarget.MEMORY))
+}
+
+/** How the snapshot enters the system prompt. Pure. */
+object MemoryPrompt {
+    const val HEADER = "【长期记忆】（来自之前的对话，可能已过时；与用户当前说法冲突时以用户为准）"
+
+    fun snapshot(user: String, memory: String): String = buildString {
+        if (user.isNotBlank()) append("USER.md:\n").append(user.trim())
+        if (memory.isNotBlank()) { if (isNotEmpty()) append("\n"); append("MEMORY.md:\n").append(memory.trim()) }
+    }
+
+    /** The block appended to the system prompt, at most [maxTokens] (whole lines dropped from the end). */
+    fun block(snapshot: String, maxTokens: Int): String {
+        if (snapshot.isBlank()) return ""
+        val full = "$HEADER\n$snapshot"
+        if (TokenEstimator.estimate(full) <= maxTokens) return full
+        val lines = full.lines().toMutableList()
+        while (lines.size > 1 && TokenEstimator.estimate(lines.joinToString("\n") + "\n" + TRUNCATED) > maxTokens) lines.removeAt(lines.size - 1)
+        return lines.joinToString("\n") + "\n" + TRUNCATED
+    }
+
+    /** Injection budget: a fifth of the window (the snapshot shares it with the conversation). */
+    fun budget(contextTokens: Int): Int = (contextTokens / 5).coerceAtLeast(200)
+
+    const val TRUNCATED = "（记忆较长，其余部分未放入本次上下文）"
+
+    /**
+     * 2.0.x: whether the conversation's snapshot should be (re)taken now: never taken, taken before
+     * 清空记忆, or the model has not answered in this conversation yet (so memory saved in the
+     * meantime — e.g. with 「记住：…」 — is seen by the first reply). After the first real reply the
+     * snapshot stays frozen (stable prompt prefix for the KV cache).
+     */
+    fun needsSnapshot(conv: com.iris.localai.data.Conversation, epoch: Int): Boolean =
+        conv.memorySnapshot == null || conv.memoryEpoch != epoch ||
+            conv.messages.none { it.role == com.iris.localai.data.Role.ASSISTANT && it.modelName != null && (it.content.isNotBlank() || it.agentSteps.isNotEmpty()) }
+}
+
+/**
+ * 2.0.x: saving to memory without the model — 「记住：…」 typed in the composer (both modes) and
+ * 「记住这条」 on a message. Pure; the write itself goes through [MemoryDocs.edit] + [MemoryOps.add].
+ */
+object MemoryCommand {
+    private val PREFIX = Regex("^(?:请)?(?:帮我)?记住(?:一下)?\\s*[:：,，]?\\s*(.+)$", RegexOption.DOT_MATCHES_ALL)
+    private val PREFIX_EN = Regex("^remember\\s*[:：]\\s*(.+)$", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL))
+    /** "记住了" / "记住吗" / "记住没" … are not commands. */
+    private val NOT_A_FACT = Regex("^[了吗没嘛啊呀哦么]")
+    /** 「记住这条」 typed as text points at nothing. */
+    private val VAGUE = setOf("这条", "这个", "这些", "这句", "这句话", "它", "那个")
+    private const val ENTRY_MAX = 300
+
+    /** The fact to save when [text] is a remember command; null otherwise (questions are not commands). */
+    fun parse(text: String): String? {
+        val t = text.trim()
+        val fact = (PREFIX.find(t) ?: PREFIX_EN.find(t))?.groupValues?.get(1)?.trim() ?: return null
+        if (fact.length < 2 || NOT_A_FACT.containsMatchIn(fact) || fact.trimEnd('。', '.', '!', '！') in VAGUE) return null
+        if (fact.endsWith("?") || fact.endsWith("？")) return null
+        return fact
+    }
+
+    /** One line, whitespace collapsed, at most 300 characters (the per-entry cap of [MemoryOps]). */
+    fun entryFrom(text: String): String {
+        val one = text.replace(Regex("\\s+"), " ").trim().removePrefix("- ").trim()
+        return if (one.length <= ENTRY_MAX) one else one.take(ENTRY_MAX - 1).trimEnd() + "…"
+    }
+
+    /** About the user ("我…", "my …") → USER.md; anything else → MEMORY.md. */
+    fun suggestTarget(text: String): MemoryTarget {
+        val t = text.trim().lowercase()
+        return if (t.startsWith("我") || t.startsWith("用户") || t.startsWith("i ") || t.startsWith("i'm") || t.startsWith("my ")) MemoryTarget.USER else MemoryTarget.MEMORY
+    }
+
+    const val DISABLED = "长期记忆已关闭（设置 › 长期记忆），没有保存"
+
+    /** What the user sees after a save ([MemoryOps] messages are written for the model, in English). */
+    fun userMessage(r: MemoryEdit, entry: String, target: MemoryTarget): String = when (r) {
+        is MemoryEdit.Ok -> "已记住：$entry（写入「${target.label}」${target.fileName}，之后的新对话都会参考）"
+        is MemoryEdit.Err -> when {
+            r.message.startsWith("already") -> "这条已经记过了：$entry"
+            r.message.startsWith("memory is full") -> "「${target.label}」已满（上限 ${MemoryOps.CAP} 字），请先在 设置 › 长期记忆 中删减"
+            r.message.startsWith("entry too long") -> "这条太长了（每条最多 $ENTRY_MAX 字），请精简后再试"
+            r.message.startsWith("content is empty") -> "没有可记住的内容"
+            else -> "没有保存：${r.message}"
+        }
+    }
+}
+
+/** 1.10.0 settings (prefs `iris_agent`, key `memory`; no existing key changes). */
+@Serializable
+data class MemorySettings(
+    /** Master switch: off = no injection, no memory tool. */
+    val enabled: Boolean = true,
+    val injectAgent: Boolean = true,
+    /** 2.0.x: on by default (was false: 对话 mode never saw the memory). */
+    val injectChat: Boolean = true,
+    /** Deterministic compaction when the conversation outgrows the window. */
+    val autoCompactAgent: Boolean = true,
+    val autoCompactChat: Boolean = true,
+    /** Bumped by 清空记忆: snapshots frozen before it are no longer injected. */
+    val epoch: Int = 0,
+    /**
+     * 2.0.x: settings stored before 2.0.x (no such key → false) had 对话模式注入 off only because
+     * that was the old default; [migrated] turns it on once. Stored as true afterwards, so a user who
+     * then turns it off keeps it off.
+     */
+    val chatInjectDefaultApplied: Boolean = false,
+) {
+    fun migrated(): MemorySettings = if (chatInjectDefaultApplied) this else copy(injectChat = true, chatInjectDefaultApplied = true)
+
+    fun inject(agentMode: Boolean): Boolean = enabled && if (agentMode) injectAgent else injectChat
+    fun autoCompact(agentMode: Boolean): Boolean = if (agentMode) autoCompactAgent else autoCompactChat
+}

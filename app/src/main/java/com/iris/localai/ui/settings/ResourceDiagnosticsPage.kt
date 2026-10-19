@@ -1,0 +1,173 @@
+package com.iris.localai.ui.settings
+
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.iris.localai.engine.ReplyReport
+import com.iris.localai.engine.ResourcePlan
+import com.iris.localai.engine.ResourceTier
+import com.iris.localai.engine.SegmentReport
+import com.iris.localai.ui.components.Divider
+import com.iris.localai.ui.components.GroupFootnote
+import com.iris.localai.ui.components.ScrollBody
+import com.iris.localai.ui.components.SectionTitle
+import com.iris.localai.ui.components.SettingsGroup
+import com.iris.localai.ui.components.SettingsRow
+import com.iris.localai.ui.components.SubpageScaffold
+import com.iris.localai.ui.theme.Iris
+import com.iris.localai.ui.theme.IrisType
+
+/** Pure text of the diagnostics page (unit-tested). */
+object DiagnosticsText {
+    fun tokPerSec(v: Float?): String = v?.let { "%.1f tok/s".format(it) } ?: "—"
+    fun cpuPerToken(v: Float?): String = v?.let { "%.1f ms/token".format(it) } ?: "—"
+    fun current(ma: Float?, samples: Int, charging: Boolean): String = when {
+        ma == null -> "读不到电流"
+        charging -> "%.0f mA（充电中，不代表耗电）".format(ma)
+        else -> "%.0f mA（%d 次采样）".format(ma, samples)
+    }
+
+    /** "cpu5 100%" … sorted by CPU id; "—" when no running sample was taken. */
+    fun cores(share: Map<Int, Float>): String =
+        if (share.isEmpty()) "—" else share.toSortedMap().entries.joinToString("  ") { "cpu${it.key} ${kotlin.math.round(it.value).toInt()}%" }
+
+    /** "1 线程 · cpu5 · nice 10" for one tier on this phone. */
+    fun plan(p: ResourcePlan): String {
+        val cores = when {
+            p.cpus.isEmpty() -> "全部核心"
+            p.cpus.size == 1 -> "cpu${p.cpus[0]}"
+            p.cpus == (p.cpus.first()..p.cpus.last()).toList() -> "cpu${p.cpus.first()}-${p.cpus.last()}"
+            else -> p.cpus.joinToString(",") { "cpu$it" }
+        }
+        return "${p.threads} 线程 · $cores · nice ${p.nice}"
+    }
+}
+
+/**
+ * 1.7.6 设置 › 资源诊断: the last reply split by resource tier, from ResourceTelemetry (the same
+ * numbers it logs under IrisResource), so the tiers can be compared without adb.
+ */
+@Composable
+fun ResourceDiagnosticsPage(vm: SettingsViewModel, onBack: () -> Unit) {
+    val report by vm.telemetryReport.collectAsStateWithLifecycle()
+    SubpageScaffold("资源诊断", onBack) {
+        ScrollBody {
+            val r = report
+            if (r == null) {
+                SectionTitle("最近一次回复")
+                SettingsGroup { SettingsRow("还没有数据", subtitle = "加载模型并发一条消息后，这里显示每个档位的速度、CPU 和电流") }
+            } else {
+                ReplySection(r)
+            }
+            SectionTitle("本机各档")
+            SettingsGroup {
+                // 1.7.8: CPU and GPU/NPU profile sets (资源档配置) side by side.
+                ResourceTier.entries.forEachIndexed { i, t ->
+                    if (i > 0) Divider()
+                    SettingsRow(
+                        t.label,
+                        subtitle = "CPU：" + DiagnosticsText.plan(vm.tierPlan(t, com.iris.localai.engine.ResourceBackendKind.CPU)) +
+                            "\nGPU：" + DiagnosticsText.plan(vm.tierPlan(t, com.iris.localai.engine.ResourceBackendKind.GPU)),
+                    )
+                }
+            }
+            GroupFootnote("比较电流时请拔掉充电线、保持亮度不变，同一个问题在不同档位各问一次。")
+
+            // 2.0.x: moved here from the settings home page (diagnostics, rarely needed).
+            SectionTitle("故障排查")
+            val st by vm.settings.collectAsStateWithLifecycle()
+            SettingsGroup {
+                com.iris.localai.ui.components.SwitchRow("禁用视觉模块 (MNN)", st.mnnNoVisual, subtitle = "视觉模型只按纯文本加载（重新加载后生效）") { on -> vm.update { it.copy(mnnNoVisual = on) } }
+                Divider()
+                com.iris.localai.ui.components.SwitchRow("强制关闭 mmap", st.mnnForceNoMmap, subtitle = "权重全部直接读取（重新加载后生效）") { on -> vm.update { it.copy(mnnForceNoMmap = on) } }
+                Divider()
+                CrashDumpRow()
+            }
+        }
+    }
+}
+
+@Composable
+private fun ReplySection(r: ReplyReport) {
+    val time = java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date(r.atEpochMs))
+    SectionTitle("最近一次回复 · $time")
+    SettingsGroup {
+        SettingsRow(
+            "整条",
+            subtitle = "${r.tokens ?: "?"} tokens · ${DiagnosticsText.tokPerSec(r.tokPerSec)} · ${DiagnosticsText.cpuPerToken(r.cpuMsPerToken)}（含预填充）",
+        )
+    }
+    r.segments.forEachIndexed { i, s ->
+        SectionTitle(if (r.segments.size > 1) "第 ${i + 1} 段 · ${s.tier}" else "档位 · ${s.tier}")
+        SettingsGroup { SegmentBody(s, r.charging) }
+    }
+}
+
+@Composable
+private fun SegmentBody(s: SegmentReport, charging: Boolean) {
+    val c = Iris.colors
+    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
+        Metric("速度", DiagnosticsText.tokPerSec(s.tokPerSec))
+        Metric("CPU", "${DiagnosticsText.cpuPerToken(s.cpuMsPerToken)} · 平均 %.2f 个核在忙".format(s.busyCores))
+        Metric("电流", DiagnosticsText.current(s.avgMa, s.maSamples, charging))
+        Metric("推理线程所在 CPU", DiagnosticsText.cores(s.coreShare))
+        if (s.coreShare.isNotEmpty()) {
+            Spacer(Modifier.height(8.dp))
+            CoreBars(s.coreShare)
+        }
+        Spacer(Modifier.height(2.dp))
+        Text("${s.tokens} tokens · ${s.wallMs} ms", style = IrisType.labelSmall, color = c.textTertiary)
+    }
+}
+
+@Composable
+private fun Metric(name: String, value: String) {
+    val c = Iris.colors
+    Row(Modifier.fillMaxWidth().padding(vertical = 3.dp), verticalAlignment = Alignment.Top) {
+        Text(name, style = IrisType.labelSmall, color = c.textSecondary, modifier = Modifier.width(112.dp))
+        Text(value, style = IrisType.labelSmall.copy(fontWeight = FontWeight.Medium), color = c.text, modifier = Modifier.weight(1f))
+    }
+}
+
+/** One quiet bar per CPU (0 … highest seen, at least 8) with the share of running samples. */
+@Composable
+private fun CoreBars(share: Map<Int, Float>) {
+    val c = Iris.colors
+    val n = maxOf(8, (share.keys.maxOrNull() ?: 0) + 1)
+    Column {
+        Canvas(Modifier.fillMaxWidth().height(36.dp)) {
+            val gap = 6.dp.toPx()
+            val w = (size.width - gap * (n - 1)) / n
+            for (i in 0 until n) {
+                val x = i * (w + gap)
+                drawRoundRect(c.outline.copy(alpha = 0.35f), Offset(x, 0f), Size(w, size.height), CornerRadius(3.dp.toPx()))
+                val f = ((share[i] ?: 0f) / 100f).coerceIn(0f, 1f)
+                if (f > 0f) {
+                    val h = (size.height * f).coerceAtLeast(2.dp.toPx())
+                    drawRoundRect(c.textSecondary.copy(alpha = 0.8f), Offset(x, size.height - h), Size(w, h), CornerRadius(3.dp.toPx()))
+                }
+            }
+        }
+        Row(Modifier.fillMaxWidth()) {
+            for (i in 0 until n) {
+                Text("$i", style = IrisType.labelSmall, color = c.textTertiary, modifier = Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+            }
+        }
+    }
+}

@@ -1,0 +1,85 @@
+package com.iris.localai.util
+
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import java.io.File
+import java.io.IOException
+import java.io.RandomAccessFile
+import java.net.HttpURLConnection
+import java.net.URL
+
+/**
+ * Resumable single-file HTTP download shared by the voice packs and the NPU runtime.
+ * Data goes to `<target>.part` and is renamed only once it has exactly the expected size, so a
+ * half-written file is never mistaken for a complete one.
+ */
+object HttpDownload {
+    private const val PART = ".part"
+    private const val BUFFER = 256 * 1024
+    private const val REPORT_EVERY = 1L shl 20
+
+    fun partFile(target: File) = File(target.path + PART)
+
+    /** One attempt (callers own the retry / mirror policy). [onBytes] gets the bytes on disk so far. */
+    suspend fun fetchOnce(url: String, target: File, expected: Long, onBytes: (Long) -> Unit) {
+        val part = partFile(target)
+        if (part.exists() && part.length() > expected) part.delete()
+        val offset = if (part.exists()) part.length() else 0L
+        if (expected > 0 && offset == expected) { // finished earlier, rename failed / was interrupted
+            if (!part.renameTo(target)) throw IOException("无法写入 ${target.name}")
+            onBytes(expected)
+            return
+        }
+        val conn = open(url, offset)
+        try {
+            val code = conn.responseCode
+            val resumed = code == HttpURLConnection.HTTP_PARTIAL
+            if (code != HttpURLConnection.HTTP_OK && !resumed) throw IOException("HTTP $code：$url")
+            RandomAccessFile(part, "rw").use { raf ->
+                var written = if (resumed) offset else 0L // 200 = server ignored Range: start over
+                raf.setLength(written)
+                raf.seek(written)
+                conn.inputStream.use { ins ->
+                    val buf = ByteArray(BUFFER)
+                    var lastReport = written
+                    while (true) {
+                        currentCoroutineContext().ensureActive()
+                        val n = ins.read(buf)
+                        if (n < 0) break
+                        raf.write(buf, 0, n)
+                        written += n
+                        if (written - lastReport >= REPORT_EVERY) { lastReport = written; onBytes(written) }
+                    }
+                }
+                if (written != expected) throw IOException("文件大小不符（$written / $expected）：${target.name}")
+            }
+        } finally {
+            conn.disconnect()
+        }
+        if (!part.renameTo(target)) throw IOException("无法写入 ${target.name}")
+        onBytes(expected)
+    }
+
+    /** GET with manual redirect handling (so a Range header survives cross-host redirects). */
+    fun open(start: String, rangeFrom: Long, maxRedirects: Int = 8): HttpURLConnection {
+        var url = start
+        repeat(maxRedirects) {
+            val c = (URL(url).openConnection() as HttpURLConnection).apply {
+                instanceFollowRedirects = false
+                connectTimeout = 15_000
+                readTimeout = 30_000
+                setRequestProperty("User-Agent", "IRIS-LocalAI/1.0")
+                if (rangeFrom > 0) setRequestProperty("Range", "bytes=$rangeFrom-")
+            }
+            val code = try { c.responseCode } catch (e: IOException) { c.disconnect(); throw e }
+            if (code in 300..399) {
+                val loc = c.getHeaderField("Location")
+                c.disconnect()
+                url = URL(URL(url), loc ?: throw IOException("重定向缺少 Location")).toString()
+            } else {
+                return c
+            }
+        }
+        throw IOException("重定向次数过多")
+    }
+}

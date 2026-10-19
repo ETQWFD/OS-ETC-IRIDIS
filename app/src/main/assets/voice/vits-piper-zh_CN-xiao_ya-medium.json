@@ -1,0 +1,1 @@
+{"repo": "csukuangfj2/vits-piper-zh_CN-xiao_ya-medium", "revision": "79e24967a196e2aeb8ee72b067fb4c0cceacc8e0", "files": [{"path": "zh_CN-xiao_ya-medium.onnx", "size": 63222141}, {"path": "lexicon.txt", "size": 2064505}, {"path": "tokens.txt", "size": 485}, {"path": "date.fst", "size": 59154}, {"path": "number.fst", "size": 64482}, {"path": "phone.fst", "size": 88630}]}

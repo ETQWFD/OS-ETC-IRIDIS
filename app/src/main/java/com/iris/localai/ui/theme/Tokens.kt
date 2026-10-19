@@ -1,0 +1,137 @@
+package com.iris.localai.ui.theme
+
+import android.animation.ValueAnimator
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+
+/*
+ * Design tokens. Every screen pulls spacing, radii, type and motion from here so the app
+ * reads as one product. Change a value here, not at the call site.
+ */
+
+/** 4-dp spacing scale plus a few semantic sizes. */
+object IrisDimens {
+    val space2 = 2.dp
+    val space4 = 4.dp
+    val space6 = 6.dp
+    val space8 = 8.dp
+    val space12 = 12.dp
+    val space16 = 16.dp
+    val space20 = 20.dp
+    val space24 = 24.dp
+    val space32 = 32.dp
+
+    /** Horizontal inset of page content (titles, descriptions, groups' outer edge). */
+    val pageGutter = 20.dp
+    /** Horizontal inset of grouped cards from the screen edge. */
+    val groupGutter = 16.dp
+    /** Inner horizontal padding of rows inside a group (1.8.0: 16 → 20, HyperOS). */
+    val rowPadding = 20.dp
+    /** Vertical padding of a row (1.8.0: 12 → 15, generous HyperOS rows). */
+    val rowVerticalPadding = 15.dp
+    val rowMinHeight = 60.dp
+    /** Minimum accessible touch target. */
+    val touchTarget = 48.dp
+
+    val iconSmall = 16.dp
+    val iconMedium = 20.dp
+    val iconLarge = 22.dp
+
+    val topBarHeight = 56.dp
+    /** Height reserved for the large page title under the top bar (HyperOS / iOS large title). */
+    val largeTitleHeight = 64.dp
+    val drawerWidth = 304.dp
+    val messageMaxWidth = 840.dp
+    val hairline = 0.5.dp
+    /** 1.10.10: the row above the composer holding the activity indicator and the context meter. */
+    val activityRowHeight = 28.dp
+}
+
+/**
+ * Corner radii. 1.8.0 (HyperOS 75% / iOS 25%): larger radii and continuous (smoothed) corners
+ * via [SmoothRoundedShape]; the pill stays a true semicircle.
+ */
+object IrisRadius {
+    /** Corner smoothing of every continuous shape (0 = plain circle, iOS ≈ 0.6). */
+    const val SMOOTHING = 0.6f
+
+    val small = 12.dp
+    val medium = 16.dp
+    /** Grouped settings cards (HyperOS ≈ 24 dp). */
+    val large = 24.dp
+    val bubble = 22.dp
+    val composer = 28.dp
+    val sheet = 30.dp
+    val dialog = 30.dp
+
+    val smallShape = smoothShape(small)
+    val mediumShape = smoothShape(medium)
+    val largeShape = smoothShape(large)
+    val bubbleShape = smoothShape(bubble)
+    val composerShape = smoothShape(composer)
+    val dialogShape = smoothShape(dialog)
+    val pillShape = RoundedCornerShape(50)
+    /** 1.10.10: About-page app icon (iOS icon ratio ≈ 22% of 72 dp). */
+    val appIconShape = smoothShape(16.dp)
+}
+
+/**
+ * Type scale. Colour is applied at the call site from [Iris.colors].
+ * 1.8.0: HyperOS-sized rows (17 sp title / 14 sp summary), a bold large page title, and
+ * SF-like weights (semibold titles, medium labels, slightly tightened large sizes).
+ */
+object IrisType {
+    /** Large left-aligned page title that collapses into the top bar. */
+    val largeTitle = TextStyle(fontSize = 32.sp, lineHeight = 40.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.4).sp)
+    /** Empty-state headline, About title. */
+    val display = TextStyle(fontSize = 24.sp, lineHeight = 30.sp, fontWeight = FontWeight.SemiBold, letterSpacing = (-0.3).sp)
+    /** Page and sheet titles (the collapsed, centred top-bar title). */
+    val title = TextStyle(fontSize = 18.sp, lineHeight = 24.sp, fontWeight = FontWeight.SemiBold, letterSpacing = (-0.1).sp)
+    /** Chat top bar model name. */
+    val titleSmall = TextStyle(fontSize = 16.sp, lineHeight = 21.sp, fontWeight = FontWeight.SemiBold)
+    /** Chat message text. */
+    val message = TextStyle(fontSize = 16.sp, lineHeight = 25.sp)
+    /** Primary text of a list row (HyperOS ≈ 17 sp). */
+    val row = TextStyle(fontSize = 17.sp, lineHeight = 23.sp, fontWeight = FontWeight.Medium)
+    /** Summary line under a row title (HyperOS ≈ 14 sp, grey). */
+    val rowSummary = TextStyle(fontSize = 14.sp, lineHeight = 19.sp)
+    /** Emphasised list text (model names, drawer). */
+    val rowStrong = TextStyle(fontSize = 15.sp, lineHeight = 21.sp, fontWeight = FontWeight.Medium)
+    val body = TextStyle(fontSize = 15.sp, lineHeight = 21.sp)
+    /** Descriptions, secondary explanations, footnotes under groups. */
+    val secondary = TextStyle(fontSize = 14.sp, lineHeight = 20.sp)
+    val label = TextStyle(fontSize = 15.sp, lineHeight = 19.sp, fontWeight = FontWeight.Medium)
+    val labelSmall = TextStyle(fontSize = 13.sp, lineHeight = 17.sp, fontWeight = FontWeight.Medium)
+    /** Small grey header above a group. */
+    val sectionHeader = TextStyle(fontSize = 14.sp, lineHeight = 18.sp)
+    /** Segmented control labels. */
+    val segment = TextStyle(fontSize = 15.sp, lineHeight = 19.sp, fontWeight = FontWeight.Medium)
+    /** Subtitles under row titles, meta lines. */
+    val caption = TextStyle(fontSize = 12.sp, lineHeight = 17.sp)
+    val micro = TextStyle(fontSize = 11.sp, lineHeight = 14.sp)
+    /** 1.10.10: voice-mode spoken reply. */
+    val voiceReply = TextStyle(fontSize = 19.sp, lineHeight = 28.sp, fontWeight = FontWeight.Medium)
+    /** 1.10.10: Markdown inside replies — same body metrics as [message], so streaming plain text
+     *  and the finished Markdown never change line height. */
+    val mdH1 = TextStyle(fontSize = 21.sp, lineHeight = 29.sp, fontWeight = FontWeight.SemiBold, letterSpacing = (-0.2).sp)
+    val mdH2 = TextStyle(fontSize = 19.sp, lineHeight = 27.sp, fontWeight = FontWeight.SemiBold, letterSpacing = (-0.1).sp)
+    val mdH3 = TextStyle(fontSize = 17.sp, lineHeight = 25.sp, fontWeight = FontWeight.SemiBold)
+    val mdTable = TextStyle(fontSize = 14.sp, lineHeight = 20.sp)
+    val mono = TextStyle(fontSize = 13.sp, lineHeight = 20.sp, fontFamily = FontFamily.Monospace)
+    val monoSmall = TextStyle(fontSize = 12.sp, lineHeight = 18.sp, fontFamily = FontFamily.Monospace)
+}
+
+/** True when the user turned animations off (developer options / accessibility "remove animations"). */
+val LocalReduceMotion = staticCompositionLocalOf { false }
+
+/** Reads the system animator switch once per theme composition. */
+fun systemAnimationsDisabled(): Boolean = !ValueAnimator.areAnimatorsEnabled()
+
+@Composable
+fun reduceMotion(): Boolean = LocalReduceMotion.current

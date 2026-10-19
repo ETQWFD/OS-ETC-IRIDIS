@@ -1,0 +1,557 @@
+package com.iris.localai.agent
+
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.put
+
+/** How the model wrote its tool call (logged, and used by the tests). */
+enum class CallFormat { FENCED, QWEN_TAG, PLAIN_JSON }
+
+data class ToolCall(val name: String, val args: JsonObject, val format: CallFormat) {
+    /** The one canonical form the system prompt teaches; history always carries this form. */
+    fun canonical(): String = "```tool\n" + buildJsonObject {
+        put("tool", name)
+        put("args", args)
+    }.toString() + "\n```"
+}
+
+sealed interface ParsedReply {
+    /** [before] = prose the model wrote ahead of the call (shown, never executed). */
+    data class Call(val call: ToolCall, val before: String) : ParsedReply
+    data class Final(val text: String) : ParsedReply
+    /** The model clearly tried to call a tool but the block could not be read. */
+    data class Malformed(val error: String, val before: String) : ParsedReply
+}
+
+/**
+ * 1.9.0: tolerant tool-call reader for small local models. The prompt teaches one format,
+ *
+ *     ```tool
+ *     {"tool": "read_file", "args": {"path": "a.txt"}}
+ *     ```
+ *
+ * but Qwen-family models (Agents-A1, Qwen3) are trained on `<tool_call>{"name":…,"arguments":…}</tool_call>`
+ * and some just print a bare JSON object, so all three are accepted. JSON is repaired before it
+ * is given up on: raw newlines inside strings (file contents), trailing commas, single quotes,
+ * Python True/False/None, and a block cut off at the end of the reply.
+ * Pure Kotlin, unit-tested (V190Test).
+ */
+object ToolCallParser {
+    private val json = Json { isLenient = true; ignoreUnknownKeys = true }
+
+    private val THINK = Regex("(?is)<think>.*?</think>")
+    private val QWEN_OPEN = Regex("(?i)<tool_call>")
+    private val QWEN_CLOSE = Regex("(?i)</tool_call>")
+    /** ```tool / ```tool_call / ```json / ``` (language optional), up to the end of that line. */
+    private val FENCE_OPEN = Regex("```[ \\t]*([A-Za-z_]*)[ \\t]*\\r?\\n?")
+    private val TOOL_FENCE_LANGS = setOf("tool", "tool_call", "toolcall", "tool_code", "function", "function_call")
+    private val NAME_KEYS = listOf("tool", "name", "tool_name", "function")
+    private val ARG_KEYS = listOf("args", "arguments", "parameters", "params", "input")
+    private val TOOL_NAME = Regex("^[A-Za-z_][A-Za-z0-9_.\\-]{0,63}$")
+    /** 1.10.4: role names the models sometimes emit as a "tool" — plain prose, never a call. */
+    val ROLE_NAMES = setOf("system", "user", "assistant", "human", "ai", "tool", "function", "bot", "model")
+    /** 1.10.4: LFM2 native form — a line starting `tool_call:<name>{...}`. */
+    /**
+     * 1.13.3: Gemma 4 native form — `<|tool_call>call:name{key: <|"|>value<|"|>}<tool_call|>`.
+     * Keys are bare and strings may be wrapped in the `<|"|>` escape token.
+     */
+    private val GEMMA_OPEN = Regex("<\\|tool_call>\\s*(?:call\\s*:)?\\s*([A-Za-z_][A-Za-z0-9_.\\-]*)\\s*")
+    private const val GEMMA_CLOSE = "<tool_call|>"
+    /** Gemma's argument body → JSON the lenient parser accepts. */
+    internal fun gemmaArgs(body: String): String {
+        val t = body.replace("<|\"|>", "\"")
+        val out = StringBuilder(t.length + 16)
+        var inStr = false; var i = 0
+        while (i < t.length) {
+            val ch = t[i]
+            if (inStr) {
+                out.append(ch)
+                if (ch == '\\' && i + 1 < t.length) { out.append(t[i + 1]); i += 2; continue }
+                if (ch == '"') inStr = false
+                i++; continue
+            }
+            if (ch == '"') { inStr = true; out.append(ch); i++; continue }
+            // bare key right after { or , → quoted
+            if ((ch.isLetter() || ch == '_') && out.trimEnd().lastOrNull().let { it == '{' || it == ',' }) {
+                var j = i
+                while (j < t.length && (t[j].isLetterOrDigit() || t[j] == '_')) j++
+                var k = j
+                while (k < t.length && t[k].isWhitespace()) k++
+                if (k < t.length && t[k] == ':') { out.append('"').append(t, i, j).append('"'); i = j; continue }
+            }
+            out.append(ch); i++
+        }
+        return out.toString()
+    }
+    private val LFM_CALL = Regex("(?m)^\\s*tool_call\\s*:\\s*([A-Za-z_][A-Za-z0-9_.\\-]*)\\s*(\\{.*)$")
+    /** 1.10.4: common misnames → the real tool. Keys are lowercase/underscores stripped. */
+    private val ALIASES = mapOf(
+        "ls" to "list_dir", "dir" to "list_dir", "listdir" to "list_dir", "ll" to "list_dir",
+        "cat" to "read_file", "read" to "read_file", "open" to "read_file", "readfile" to "read_file", "view" to "read_file", "file" to "read_file",
+        "write" to "write_file", "writefile" to "write_file", "save" to "write_file", "createfile" to "write_file", "create" to "write_file",
+        "edit" to "edit_file", "editfile" to "edit_file", "replace" to "edit_file", "patch" to "edit_file", "modify" to "edit_file",
+        "search" to "search_files", "grep" to "search_files", "find" to "search_files", "glob" to "search_files", "searchfiles" to "search_files",
+        "rm" to "delete_file", "del" to "delete_file", "delete" to "delete_file", "remove" to "delete_file", "deletefile" to "delete_file",
+        "calc" to "calculator", "math" to "calculator", "calculate" to "calculator",
+        "time" to "datetime", "date" to "datetime", "now" to "datetime",
+        "fetch" to "web_fetch", "http" to "web_fetch", "web" to "web_fetch", "webfetch" to "web_fetch", "curl" to "web_fetch", "url" to "web_fetch",
+        "todo" to "plan", "todos" to "plan", "checklist" to "plan", "load" to "activate", "enable" to "activate",
+        "history" to "recall", "remember" to "memory", "note" to "memory",
+    )
+    /** Map a misnamed call to a real tool name; null when nothing plausibly matches. */
+    fun canonicalizeName(raw: String, available: Set<String>): String? {
+        val key = raw.trim().lowercase().replace(Regex("[_\\-.\\s]"), "")
+        if (key.isEmpty()) return null
+        available.firstOrNull { it.lowercase() == raw.trim().lowercase() }?.let { return it }
+        available.firstOrNull { it.lowercase().replace(Regex("[_\\-.\\s]"), "") == key }?.let { return it }
+        val alias = ALIASES[key]
+        if (alias != null && available.any { it == alias }) return alias
+        // one edit away (case/typo): "readflle" → "read_file"
+        if (raw.length >= 4) for (t in available) if (editDistanceLe2(key, t.lowercase().replace("_", ""))) return t
+        return null
+    }
+    private fun editDistanceLe2(a: String, b: String): Boolean {
+        if (kotlin.math.abs(a.length - b.length) > 2) return false
+        var prev = IntArray(b.length + 1) { it }
+        for (i in 1..a.length) {
+            val cur = IntArray(b.length + 1)
+            cur[0] = i
+            for (j in 1..b.length) cur[j] = minOf(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + if (a[i - 1] == b[j - 1]) 0 else 1)
+            if (cur.min() > 2) return false
+            prev = cur
+        }
+        return prev[b.length] <= 2
+    }
+
+    fun parse(reply: String): ParsedReply {
+        val text = THINK.replace(reply, "").trim()
+
+        // 1) Qwen tag (trained format of Agents-A1 / Qwen3): first <tool_call> wins.
+        QWEN_OPEN.find(text)?.let { open ->
+            val before = text.substring(0, open.range.first).trim()
+            val rest = text.substring(open.range.last + 1)
+            val body = QWEN_CLOSE.find(rest)?.let { rest.substring(0, it.range.first) } ?: rest
+            return fromObjectText(body, CallFormat.QWEN_TAG, before, required = true)
+        }
+
+        // 1b) 1.13.3: Gemma 4 native call.
+        GEMMA_OPEN.find(text)?.let { m ->
+            val before = text.substring(0, m.range.first).trim()
+            val name = m.groupValues[1]
+            if (name.lowercase() in ROLE_NAMES) return ParsedReply.Final(reply.trim())
+            val rest = text.substring(m.range.last + 1)
+            val body = rest.substringBefore(GEMMA_CLOSE)
+            val start = body.indexOf('{')
+            if (start < 0) return ParsedReply.Call(ToolCall(name, JsonObject(emptyMap()), CallFormat.FENCED), before)
+            val g = gemmaArgs(body.substring(start))
+            val el = JsonRepair.parse(JsonRepair.extractObject(g, 0), json) as? JsonObject
+                ?: return ParsedReply.Malformed("Gemma 工具调用的参数无法解析", before)
+            return ParsedReply.Call(ToolCall(name, el, CallFormat.FENCED), before)
+        }
+
+        // 2) Fenced block. ```tool always means a call; ```json / ``` only when the object names a tool.
+        var pos = 0
+        while (pos < text.length) {
+            val m = FENCE_OPEN.find(text, pos) ?: break
+            val lang = m.groupValues[1].lowercase()
+            val start = (m.range.last + 1).coerceAtMost(text.length)
+            val close = text.indexOf("```", start)
+            val body = if (close >= 0) text.substring(start, close) else text.substring(start)
+            val before = text.substring(0, m.range.first).trim()
+            if (lang in TOOL_FENCE_LANGS) return fromObjectText(body, CallFormat.FENCED, before, required = true)
+            if (lang == "json" || lang.isEmpty()) {
+                val r = fromObjectText(body, CallFormat.FENCED, before, required = false)
+                if (r is ParsedReply.Call) return r
+            }
+            // An ordinary code block: continue after its closing fence (never read it as an opening one).
+            if (close < 0) break
+            pos = close + 3
+        }
+
+// 3) Bare JSON object that is alone on its line.
+        val brace = firstLineStartBrace(text)
+        if (brace >= 0) {
+            val before = text.substring(0, brace).trim()
+            val obj = text.substring(brace)
+            val r = fromObjectText(obj, CallFormat.PLAIN_JSON, before, required = false)
+            if (r is ParsedReply.Call) return r
+            // Looks like a call ("tool": … right at the start) but is broken → ask for a retry.
+            if (brace == 0 && Regex("^\\{\\s*[\"']?(tool|name)[\"']?\\s*:").containsMatchIn(obj)) {
+                return fromObjectText(obj, CallFormat.PLAIN_JSON, before, required = true)
+            }
+        }
+        // 4) 1.10.4: LFM2 native form — tool_call:<name>{"k":v}. The name sits outside the JSON.
+        LFM_CALL.find(text)?.let { m ->
+            val before = text.substring(0, m.range.first).trim()
+            val body = m.groupValues[2]
+            val start = body.indexOf('{')
+            if (start >= 0) {
+                val el = JsonRepair.parse(JsonRepair.extractObject(body, start), json) as? JsonObject
+                // 1.10.8: tool_call:system{…} is a role name too — prose, never a call.
+                if (m.groupValues[1].lowercase() in ROLE_NAMES) return ParsedReply.Final(reply.trim())
+                if (el != null) return ParsedReply.Call(ToolCall(m.groupValues[1], el, CallFormat.FENCED), before)
+            }
+            return ParsedReply.Malformed("LFM 工具调用的 JSON 无法解析", before)
+        }
+        return ParsedReply.Final(reply.trim())
+    }
+
+    /**
+     * Index just past the first complete call in a streaming reply, or null. The engine is stopped
+     * there: anything after it would be the model inventing the tool's answer.
+     */
+    fun callEnd(streamed: CharSequence): Int? {
+        val s = streamed.toString()
+        val noThinkStart = thinkEnd(s)
+        // 1.10.4: cheap guard — most streamed tokens contain none of the call markers,
+        // so skip the full regex scan (the per-token hot path).
+        // 1.13.3: Gemma 4 native call ends at <tool_call|>.
+        if (s.indexOf("<|tool_call>", noThinkStart) >= 0) GEMMA_OPEN.find(s, noThinkStart)?.let { m ->
+            val close = s.indexOf(GEMMA_CLOSE, m.range.last + 1)
+            return if (close >= 0) close + GEMMA_CLOSE.length else null
+        }
+        if (!s.contains("<tool_call>", ignoreCase = true) && s.indexOf("```", noThinkStart) < 0 &&
+            s.indexOf("tool_call", noThinkStart, ignoreCase = true) < 0 && s.indexOf("<tool_response", noThinkStart, ignoreCase = true) < 0
+        ) return null
+        // 1.10.4: LFM2 form ends at the end of its line once a closing brace appeared.
+        LFM_CALL.find(s, noThinkStart)?.let { m ->
+            if ('}' in m.groupValues[2]) return m.range.last + 1
+            return null
+        }
+        QWEN_OPEN.find(s, noThinkStart)?.let { open ->
+            QWEN_CLOSE.find(s, open.range.last + 1)?.let { return it.range.last + 1 }
+            return null
+        }
+        for (m in FENCE_OPEN.findAll(s, noThinkStart)) {
+            val lang = m.groupValues[1].lowercase()
+            if (lang !in TOOL_FENCE_LANGS) continue
+            val close = s.indexOf("```", m.range.last + 1)
+            return if (close >= 0) close + 3 else null
+        }
+        // A hallucinated tool result: cut right before it.
+        val resp = s.indexOf("<tool_response", noThinkStart, ignoreCase = true)
+        if (resp >= 0) return resp
+        return null
+    }
+
+    /** Text to show while streaming: the call block (complete or still being written) is hidden. */
+    fun visibleText(streamed: String): String {
+        val from = thinkEnd(streamed)
+        var cut = streamed.length
+        QWEN_OPEN.find(streamed, from)?.let { cut = minOf(cut, it.range.first) }
+        streamed.indexOf("<|tool_call>", from).let { if (it >= 0) cut = minOf(cut, it) }
+        for (m in FENCE_OPEN.findAll(streamed, from)) {
+            if (m.groupValues[1].lowercase() in TOOL_FENCE_LANGS) { cut = minOf(cut, m.range.first); break }
+        }
+        // "```too" still being written at the very end.
+        val last = streamed.lastIndexOf("```")
+        if (last >= from) {
+            val tail = streamed.substring(last + 3)
+            if ('\n' !in tail) {
+                val lang = tail.trim().lowercase()
+                if (lang.isNotEmpty() && TOOL_FENCE_LANGS.any { it.startsWith(lang) }) cut = minOf(cut, last)
+            }
+        }
+        val tag = streamed.lastIndexOf('<')
+        if (tag >= from && streamed.substring(tag).lowercase().let { "<tool_call>".startsWith(it) || "<|tool_call>".startsWith(it) }) cut = minOf(cut, tag)
+        return com.iris.localai.context.ToolRollup.stripEcho(stripCalls(streamed.substring(0, cut), streaming = true).trimEnd())
+    }
+
+    /**
+     * 2.1.0: the reply as the user sees it. Every span that reads as a tool call — ```tool / ```json
+     * / bare-JSON / `<tool_call>` / Gemma / LFM forms — is removed; the prose around it is kept.
+     * With [streaming], a call still being written at the end (an open ```json fence, a `{"tool"`
+     * line, a half-typed fence tag) is hidden too. Ordinary code and JSON data stay. Pure.
+     */
+    fun stripCalls(text: String, streaming: Boolean = false): String {
+        val from = thinkEnd(text)
+        val s = text.substring(from)
+        val cuts = ArrayList<IntRange>()   // half-open [first, last) as first until last
+        val fenced = ArrayList<IntRange>()
+        for (m in QWEN_OPEN.findAll(s)) {
+            val close = QWEN_CLOSE.find(s, m.range.last + 1)
+            cuts += m.range.first until (close?.range?.last?.plus(1) ?: s.length)
+        }
+        var gi = s.indexOf("<|tool_call>")
+        while (gi >= 0) {
+            val ce = s.indexOf(GEMMA_CLOSE, gi)
+            val end = if (ce >= 0) ce + GEMMA_CLOSE.length else s.length
+            cuts += gi until end
+            gi = s.indexOf("<|tool_call>", end)
+        }
+        var pos = 0
+        while (pos < s.length) {
+            val m = FENCE_OPEN.find(s, pos) ?: break
+            if (cuts.any { m.range.first in it }) { pos = m.range.last + 1; continue }
+            val lang = m.groupValues[1].lowercase()
+            val start = (m.range.last + 1).coerceAtMost(s.length)
+            val close = s.indexOf("```", start)
+            val end = if (close >= 0) close + 3 else s.length
+            val body = s.substring(start, if (close >= 0) close else s.length)
+            val open = close < 0
+            val call = lang in TOOL_FENCE_LANGS ||
+                ((lang == "json" || lang.isEmpty()) && isCallObject(body)) ||
+                (streaming && open && (
+                    // ```, ```j, ```too … still being typed, nothing in the block yet
+                    (body.isBlank() && !m.value.contains('\n') && (lang.isEmpty() || "json".startsWith(lang) || TOOL_FENCE_LANGS.any { it.startsWith(lang) })) ||
+                    ((lang == "json" || lang.isEmpty()) && callPrefix(body))))
+            if (call) cuts += m.range.first until end else fenced += m.range.first until end
+            if (open) break
+            pos = end
+        }
+        // Bare JSON objects alone on their line, outside any code block.
+        var ls = 0
+        while (ls < s.length) {
+            var j = ls
+            while (j < s.length && (s[j] == ' ' || s[j] == '\t')) j++
+            val nl = s.indexOf('\n', ls).let { if (it < 0) s.length else it }
+            if (j < s.length && s[j] == '{' && cuts.none { j in it } && fenced.none { j in it }) {
+                val raw = JsonRepair.extractObject(s, j)
+                val closed = s.startsWith(raw, j)
+                val end = if (closed) j + raw.length else s.length
+                if ((closed || !streaming) && isCallObject(raw)) { cuts += j until end; ls = end; continue }
+                if (!closed && streaming && callPrefix(s.substring(j))) { cuts += j until s.length; break }
+            }
+            ls = nl + 1
+        }
+        for (m in LFM_CALL.findAll(s)) {
+            if (m.groupValues[1].lowercase() in ROLE_NAMES || cuts.any { m.range.first in it }) continue
+            cuts += m.range.first until m.range.last + 1
+        }
+        if (cuts.isEmpty()) return text
+        val keep = BooleanArray(s.length) { true }
+        cuts.forEach { r -> for (k in r) if (k in keep.indices) keep[k] = false }
+        val out = StringBuilder(s.length)
+        for (k in s.indices) if (keep[k]) out.append(s[k])
+        val body = out.toString().replace(Regex("[ \t]+\n"), "\n").replace(Regex("\n{3,}"), "\n\n").trim()
+        return text.substring(0, from) + (if (from > 0 && body.isNotEmpty()) "\n" else "") + body
+    }
+
+    /** A complete object that [parse] would execute as a call. */
+    private fun isCallObject(body: String): Boolean =
+        body.indexOf('{') >= 0 && fromObjectText(body, CallFormat.PLAIN_JSON, "", required = false) is ParsedReply.Call
+
+    private val CALL_HEAD = Regex("^\\{\\s*[\"']?([A-Za-z_]*)([\"']?)\\s*(:?)")
+    /** The start of an object that is becoming a call: `{`, `{"to`, `{"tool":` … */
+    private fun callPrefix(body: String): Boolean {
+        val t = body.trimStart()
+        if (t.isEmpty()) return true
+        if (!t.startsWith("{")) return false
+        val m = CALL_HEAD.find(t) ?: return false
+        val key = m.groupValues[1].lowercase()
+        if (m.range.last + 1 >= t.length) return NAME_KEYS.any { it.startsWith(key) }
+        return m.groupValues[3] == ":" && key in NAME_KEYS
+    }
+
+    // ------------------------------------------------------------------ helpers
+
+    /** Where the answer starts: after a closed think block, or 0. An unclosed one hides nothing. */
+    private fun thinkEnd(s: String): Int {
+        val close = s.lastIndexOf("</think>", ignoreCase = true)
+        return if (close >= 0) close + "</think>".length else 0
+    }
+
+    private fun firstLineStartBrace(text: String): Int {
+        var i = 0
+        while (i < text.length) {
+            val lineStart = i
+            var j = i
+            while (j < text.length && (text[j] == ' ' || text[j] == '\t')) j++
+            if (j < text.length && text[j] == '{') return j
+            val nl = text.indexOf('\n', lineStart)
+            if (nl < 0) return -1
+            i = nl + 1
+        }
+        return -1
+    }
+
+    private fun fromObjectText(body: String, format: CallFormat, before: String, required: Boolean): ParsedReply {
+        val start = body.indexOf('{')
+        if (start < 0) {
+            return if (required) ParsedReply.Malformed("没有找到 JSON 对象", before) else ParsedReply.Final(body)
+        }
+        val raw = JsonRepair.extractObject(body, start)
+        val element = JsonRepair.parse(raw, json)
+            ?: return if (required) ParsedReply.Malformed("JSON 无法解析：${raw.take(80)}", before) else ParsedReply.Final(body)
+        val obj = element as? JsonObject
+            ?: return if (required) ParsedReply.Malformed("工具调用必须是 JSON 对象", before) else ParsedReply.Final(body)
+        // 1.10.4: {"name":"system"|...} — a role/dialogue JSON the model wrote as prose, never a call.
+        val nameRaw = NAME_KEYS.firstNotNullOfOrNull { (obj[it] as? JsonPrimitive)?.takeIf { p -> p.isString }?.content }?.trim()?.lowercase()
+        if (nameRaw != null && nameRaw in ROLE_NAMES) return ParsedReply.Final((if (before.isEmpty()) body else "$before\n$body").trim())
+        return when (val r = toCall(obj, format)) {
+            is Result.Ok -> ParsedReply.Call(r.call, before)
+            is Result.Err -> if (required) ParsedReply.Malformed(r.message, before) else ParsedReply.Final(body)
+        }
+    }
+
+    private sealed interface Result {
+        data class Ok(val call: ToolCall) : Result
+        data class Err(val message: String) : Result
+    }
+
+    private fun toCall(obj: JsonObject, format: CallFormat): Result {
+        var nameEl: JsonElement? = NAME_KEYS.firstNotNullOfOrNull { obj[it] }
+        var argsEl: JsonElement? = ARG_KEYS.firstNotNullOfOrNull { obj[it] }
+        // OpenAI style: {"function": {"name": …, "arguments": "…"}}
+        (nameEl as? JsonObject)?.let { fn ->
+            nameEl = fn["name"]
+            if (argsEl == null) argsEl = fn["arguments"] ?: fn["args"]
+        }
+        val name = (nameEl as? JsonPrimitive)?.takeIf { it.isString }?.content?.trim()
+        if (name.isNullOrEmpty()) return Result.Err("缺少 \"tool\" 字段（工具名）")
+        if (!TOOL_NAME.matches(name)) return Result.Err("工具名无效：${name.take(40)}")
+        val args: JsonObject = when (val a = argsEl) {
+            null, is JsonNull -> {
+                // {"tool": "read_file", "path": "a.txt"}: the other keys are the arguments.
+                val used = NAME_KEYS.toSet()
+                JsonObject(obj.filterKeys { it !in used })
+            }
+            is JsonObject -> a
+            is JsonPrimitive -> if (a.isString) {
+                val inner = JsonRepair.parse(a.content.trim().ifEmpty { "{}" }, json)
+                inner as? JsonObject ?: return Result.Err("\"args\" 必须是 JSON 对象")
+            } else return Result.Err("\"args\" 必须是 JSON 对象")
+            else -> return Result.Err("\"args\" 必须是 JSON 对象")
+        }
+        return Result.Ok(ToolCall(name, args, format))
+    }
+}
+
+/** Small JSON repairs for what local models actually emit. Pure. */
+object JsonRepair {
+    /**
+     * The balanced `{…}` starting at [start] (quotes and escapes respected). When the text ends
+     * first, the open string and brackets are closed so a reply cut off by a token limit still parses.
+     */
+    fun extractObject(s: String, start: Int): String {
+        val stack = ArrayList<Char>()
+        var quote: Char? = null
+        var esc = false
+        var i = start
+        while (i < s.length) {
+            val ch = s[i]
+            if (quote != null) {
+                when {
+                    esc -> esc = false
+                    ch == '\\' -> esc = true
+                    ch == quote -> quote = null
+                }
+            } else when (ch) {
+                '"', '\'' -> quote = ch
+                '{' -> stack.add('}')
+                '[' -> stack.add(']')
+                '}', ']' -> {
+                    if (stack.isNotEmpty()) stack.removeAt(stack.size - 1)
+                    if (stack.isEmpty()) return s.substring(start, i + 1)
+                }
+            }
+            i++
+        }
+        val sb = StringBuilder(s.substring(start).trimEnd())
+        if (quote != null) sb.append(quote)
+        for (k in stack.indices.reversed()) sb.append(stack[k])
+        return sb.toString()
+    }
+
+    /** Parses [raw] as is, then once more after [repair]; null when both fail. */
+    fun parse(raw: String, json: Json): JsonElement? {
+        // 1.10.8: lenient mode would read “curly” quotes as part of unquoted strings — repair first.
+        if ('“' in raw) runCatching { json.parseToJsonElement(repair(raw)) }.getOrNull()?.let { return it }
+        return runCatching { json.parseToJsonElement(raw) }.getOrNull()
+            ?: runCatching { json.parseToJsonElement(repair(raw)) }.getOrNull()
+    }
+
+    /**
+     * Raw control characters inside strings → escapes; single-quoted strings → double-quoted;
+     * trailing commas dropped; True/False/None → true/false/null (outside strings).
+     * 1.10.8: a wrong separator after a key (`"tool"; "x"`, `"tool"= "x"`, full-width `：`) → `:`,
+     * and `;` / `，` between members → `,`; “curly quotes” around keys/values → `"`.
+     */
+    fun repair(s: String): String {
+        val out = StringBuilder(s.length + 16)
+        var quote: Char? = null
+        var esc = false
+        var i = 0
+        val stack = ArrayList<Char>()
+        var expectKey = false     // inside an object, before a key
+        var afterKey = false      // a key string just closed; next is its separator
+        while (i < s.length) {
+            val ch = s[i]
+            if (quote != null) {
+                when {
+                    esc -> { esc = false; out.append(ch) }
+                    ch == '\\' -> { esc = true; out.append(ch) }
+                    ch == quote -> {
+                        quote = null; out.append('"')
+                        if (expectKey && stack.lastOrNull() == '{') { afterKey = true; expectKey = false }
+                    }
+                    ch == '"' -> out.append("\\\"") // a double quote inside a single-quoted string
+                    ch == '\n' -> out.append("\\n")
+                    ch == '\r' -> out.append("\\r")
+                    ch == '\t' -> out.append("\\t")
+                    ch.code < 0x20 -> out.append("\\u%04x".format(ch.code))
+                    else -> out.append(ch)
+                }
+            } else {
+                if (!ch.isWhitespace() && afterKey && ch != ':' && ch != ';' && ch != '=' && ch != '：') afterKey = false
+                when {
+                    ch == '"' || ch == '\'' -> { quote = ch; out.append('"') }
+                    ch == '“' -> { quote = '”'; out.append('"') }
+                    ch == '{' -> { stack.add('{'); expectKey = true; out.append(ch) }
+                    ch == '[' -> { stack.add('['); expectKey = false; out.append(ch) }
+                    ch == '}' || ch == ']' -> { if (stack.isNotEmpty()) stack.removeAt(stack.size - 1); expectKey = false; out.append(ch) }
+                    ch == ':' || ((ch == ';' || ch == '=' || ch == '：') && afterKey) -> { afterKey = false; out.append(':') }
+                    ch == ';' || ch == '，' -> { expectKey = stack.lastOrNull() == '{'; out.append(',') }
+                    ch == ',' -> {
+                        expectKey = stack.lastOrNull() == '{'
+                        var j = i + 1
+                        while (j < s.length && s[j].isWhitespace()) j++
+                        if (j < s.length && (s[j] == '}' || s[j] == ']')) Unit else out.append(ch)
+                    }
+                    s.startsWith("True", i) && boundary(s, i, 4) -> { out.append("true"); i += 3 }
+                    s.startsWith("False", i) && boundary(s, i, 5) -> { out.append("false"); i += 4 }
+                    s.startsWith("None", i) && boundary(s, i, 4) -> { out.append("null"); i += 3 }
+                    else -> out.append(ch)
+                }
+            }
+            i++
+        }
+        return out.toString()
+    }
+
+    private fun boundary(s: String, i: Int, len: Int): Boolean {
+        val before = if (i == 0) ' ' else s[i - 1]
+        val after = if (i + len >= s.length) ' ' else s[i + len]
+        return !before.isLetterOrDigit() && !after.isLetterOrDigit() && before != '_' && after != '_'
+    }
+}
+
+/** Typed access to tool arguments (models send numbers as strings and vice versa). */
+object Args {
+    fun str(args: JsonObject, vararg keys: String): String? = keys.firstNotNullOfOrNull { k ->
+        (args[k] as? JsonPrimitive)?.takeIf { it !is JsonNull }?.content
+    }
+
+    fun int(args: JsonObject, vararg keys: String): Int? = str(args, *keys)?.trim()?.toDoubleOrNull()?.toInt()
+
+    fun bool(args: JsonObject, vararg keys: String): Boolean? = str(args, *keys)?.trim()?.lowercase()?.let {
+        when (it) { "true", "1", "yes", "y" -> true; "false", "0", "no", "n" -> false; else -> null }
+    }
+
+    /** One line for the step card: `path=a.txt, content=(120 字)`. */
+    fun summary(args: JsonObject, max: Int = 80): String {
+        val s = args.entries.joinToString(", ") { (k, v) ->
+            val raw = (v as? JsonPrimitive)?.let { if (it.isString) it.content else it.toString() } ?: v.toString()
+            val one = raw.replace('\n', ' ')
+            k + "=" + if (one.length > 40) "（${raw.length} 字）" else one
+        }
+        return if (s.length > max) s.take(max - 1) + "…" else s
+    }
+
+    fun primitive(args: JsonObject, key: String): String? = runCatching { args[key]?.jsonPrimitive?.content }.getOrNull()
+}

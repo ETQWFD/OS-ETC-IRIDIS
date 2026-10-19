@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <!-- LiteRT-LM GPU backend (OpenCL on Adreno / Mali). Optional so CPU-only devices still install. -->
+        <uses-native-library android:name="libvndksupport.so" android:required="false" />
+        <uses-native-library android:name="libOpenCL.so" android:required="false" />
+        <!-- Hexagon DSP RPC: without this the app's linker namespace can't open the vendor
+             FastRPC library, QNN HTP gets no DSP session and prefill fails "Failed to allocate tensors". -->
+        <uses-native-library android:name="libcdsprpc.so" android:required="false" />
+    </application>
+</manifest>

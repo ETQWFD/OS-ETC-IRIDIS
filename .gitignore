@@ -1,0 +1,22 @@
+*.iml
+.gradle/
+/local.properties
+/keystore.properties
+*.jks
+*.keystore
+.idea/
+.DS_Store
+/build/
+/app/build/
+/app/.cxx/
+captures/
+.externalNativeBuild/
+*.apk
+*.aab
+# fetched by scripts/fetch-deps.sh
+/third_party/
+/app/libs/*.aar
+
+# never publish signing material
+/keystore/
+*.p12

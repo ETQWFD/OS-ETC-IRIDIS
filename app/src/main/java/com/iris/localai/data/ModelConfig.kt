@@ -1,0 +1,158 @@
+package com.iris.localai.data
+
+import android.content.Context
+import com.iris.localai.engine.Backend
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.MapSerializer
+import kotlinx.serialization.builtins.serializer
+import kotlinx.serialization.json.Json
+import java.io.File
+
+/**
+ * 1.7.1: per-model settings, keyed by model id (file / folder name). Every field is nullable:
+ * null = follow the global default in [AppSettings]. "恢复默认" simply deletes the entry.
+ */
+@Serializable
+data class ModelOverrides(
+    /** "CPU" / "GPU" / "NPU"; null = the format's default backend (usually 自动). */
+    val backend: String? = null,
+    val contextLength: Int? = null,
+    val maxNewTokens: Int? = null,
+    val temperature: Float? = null,
+    val topP: Float? = null,
+    val topK: Int? = null,
+    val minP: Float? = null,
+    val repeatPenalty: Float? = null,
+    val repeatLastN: Int? = null,
+    val presencePenalty: Float? = null,
+    val frequencyPenalty: Float? = null,
+    /** -1 = random. */
+    val seed: Int? = null,
+    /** 0 = follow the resource tier. */
+    val threads: Int? = null,
+    /** 0 = follow the resource tier. */
+    val batchSize: Int? = null,
+    /** 0 = F16, 1 = Q8_0, 2 = Q4_0. */
+    val kvCacheType: Int? = null,
+    val flashAttention: Boolean? = null,
+    val useMmap: Boolean? = null,
+    val warmup: Boolean? = null,
+    val thinking: Boolean? = null,
+    /** Replaces the global 自定义指令 for this model when non-null. */
+    val systemPrompt: String? = null,
+) {
+    val isEmpty: Boolean get() = this == ModelOverrides()
+
+    fun sanitized(): ModelOverrides = copy(
+        backend = Backend.parse(backend)?.name,
+        contextLength = contextLength?.coerceIn(512, 131072),
+        maxNewTokens = maxNewTokens?.coerceIn(64, 16384),
+        temperature = temperature?.clampOr(0f, 2f, 0.7f),
+        topP = topP?.clampOr(0.05f, 1f, 0.95f),
+        topK = topK?.coerceIn(0, 200),
+        minP = minP?.clampOr(0f, 0.5f, 0.05f),
+        repeatPenalty = repeatPenalty?.clampOr(1f, 2f, 1.1f),
+        repeatLastN = repeatLastN?.coerceIn(0, 2048),
+        presencePenalty = presencePenalty?.clampOr(-2f, 2f, 0f),
+        frequencyPenalty = frequencyPenalty?.clampOr(-2f, 2f, 0f),
+        seed = seed?.coerceAtLeast(-1),
+        threads = threads?.coerceIn(0, 16),
+        batchSize = batchSize?.coerceIn(0, 2048),
+        kvCacheType = kvCacheType?.coerceIn(0, 2),
+    )
+
+    /** Keys whose change only takes effect after reloading the model. */
+    fun loadSignature(): List<Any?> = listOf(backend, contextLength, batchSize, kvCacheType, flashAttention, useMmap, threads)
+}
+
+/** Global defaults + one model's overrides, fully resolved. */
+data class EffectiveModelConfig(
+    /** null = 自动. */
+    val backend: Backend?,
+    val contextLength: Int,
+    val maxNewTokens: Int,
+    val temperature: Float,
+    val topP: Float,
+    val topK: Int,
+    val minP: Float,
+    val repeatPenalty: Float,
+    val repeatLastN: Int,
+    val presencePenalty: Float,
+    val frequencyPenalty: Float,
+    val seed: Int,
+    val threads: Int,
+    val batchSize: Int,
+    val kvCacheType: Int,
+    val flashAttention: Boolean,
+    val useMmap: Boolean,
+    val warmup: Boolean,
+    val thinking: Boolean,
+    val systemPrompt: String,
+) {
+    companion object {
+        fun resolve(s: AppSettings, format: ModelFormat?, o: ModelOverrides?): EffectiveModelConfig {
+            val m = o ?: ModelOverrides()
+            val formatDefault = format?.let { Backend.parse(s.defaultBackends[it.name]) }
+            return EffectiveModelConfig(
+                backend = Backend.parse(m.backend) ?: formatDefault,
+                contextLength = m.contextLength ?: s.contextLength,
+                maxNewTokens = m.maxNewTokens ?: s.maxNewTokens,
+                temperature = m.temperature ?: s.temperature,
+                topP = m.topP ?: s.topP,
+                topK = m.topK ?: s.topK,
+                minP = m.minP ?: s.minP,
+                repeatPenalty = m.repeatPenalty ?: s.repeatPenalty,
+                repeatLastN = m.repeatLastN ?: s.repeatLastN,
+                presencePenalty = m.presencePenalty ?: s.presencePenalty,
+                frequencyPenalty = m.frequencyPenalty ?: s.frequencyPenalty,
+                seed = m.seed ?: s.seed,
+                threads = m.threads ?: s.threads,
+                batchSize = m.batchSize ?: s.batchSize,
+                kvCacheType = m.kvCacheType ?: s.kvCacheType.coerceAtLeast(0),
+                flashAttention = m.flashAttention ?: s.flashAttention,
+                useMmap = m.useMmap ?: s.useMmap,
+                warmup = m.warmup ?: s.warmup,
+                thinking = m.thinking ?: s.deepThinking,
+                systemPrompt = m.systemPrompt ?: s.systemPrompt,
+            )
+        }
+    }
+}
+
+/** Per-model overrides, one small JSON file, written atomically. */
+class ModelConfigRepository(context: Context) {
+    private val file = File(context.filesDir, "model_configs.json")
+    private val json = Json { ignoreUnknownKeys = true; encodeDefaults = false }
+    private val serializer = MapSerializer(String.serializer(), ModelOverrides.serializer())
+    private val lock = Any()
+    private val _configs = MutableStateFlow(read())
+    val configs: StateFlow<Map<String, ModelOverrides>> = _configs.asStateFlow()
+
+    fun get(modelId: String?): ModelOverrides = modelId?.let { _configs.value[it] } ?: ModelOverrides()
+
+    fun update(modelId: String, block: (ModelOverrides) -> ModelOverrides) = synchronized(lock) {
+        val next = block(get(modelId)).sanitized()
+        val map = _configs.value.toMutableMap()
+        if (next.isEmpty) map.remove(modelId) else map[modelId] = next
+        if (map == _configs.value) return@synchronized
+        _configs.value = map
+        write(map)
+    }
+
+    fun reset(modelId: String) = update(modelId) { ModelOverrides() }
+
+    private fun read(): Map<String, ModelOverrides> = runCatching {
+        if (!file.isFile) emptyMap() else json.decodeFromString(serializer, file.readText()).mapValues { it.value.sanitized() }
+    }.getOrDefault(emptyMap())
+
+    private fun write(map: Map<String, ModelOverrides>) {
+        runCatching {
+            val tmp = File(file.parentFile, file.name + ".tmp")
+            tmp.writeText(json.encodeToString(serializer, map))
+            if (!tmp.renameTo(file)) { file.delete(); tmp.renameTo(file) }
+        }
+    }
+}

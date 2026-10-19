@@ -1,0 +1,22 @@
+name: android
+on: [push, pull_request]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 17 }
+      - name: Install SDK components
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
+            "platforms;android-35" "build-tools;35.0.0" "ndk;27.2.12479018"
+      - run: sh scripts/fetch-deps.sh
+      - name: Native engine tests (host, real model)
+        run: |
+          sudo apt-get install -y ninja-build
+          curl -fL -o /tmp/smol.gguf https://huggingface.co/bartowski/SmolLM2-135M-Instruct-GGUF/resolve/main/SmolLM2-135M-Instruct-Q4_K_M.gguf
+          sh scripts/host-test.sh /tmp/smol.gguf
+      - run: ./gradlew --no-daemon testFullDebugUnitTest lintFullDebug assembleFullDebug
+      - uses: actions/upload-artifact@v4
+        with: { name: apk, path: app/build/outputs/apk/full/debug/*.apk }

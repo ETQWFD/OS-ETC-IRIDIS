@@ -1,0 +1,1 @@
+{"repo": "csukuangfj/sherpa-onnx-paraformer-zh-2024-03-09", "revision": "906992d326ebf0c5171cde675aa0902be9e5bc6c", "files": [{"path": "model.int8.onnx", "size": 227330205}, {"path": "tokens.txt", "size": 75354}]}
