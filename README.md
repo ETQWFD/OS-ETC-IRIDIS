@@ -14,8 +14,10 @@
 <p align="center">
   <img alt="Android 12+ arm64" src="https://img.shields.io/badge/Android-12%2B%20arm64-3DDC84?logo=android&logoColor=white">
   <a href="LICENSE"><img alt="License: Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-blue"></a>
-  <a href="CHANGELOG.md"><img alt="Version: 2.0.0-beta" src="https://img.shields.io/badge/version-2.0.0--beta-orange"></a>
+  <a href="CHANGELOG.md"><img alt="Version: 2.1.0" src="https://img.shields.io/badge/version-2.1.0-orange"></a>
 </p>
+
+<p align="center"><img src="docs/assets/cover.webp" alt="IRIDIS 一站式安卓本地 AI 平台" width="720"></p>
 
 <p align="center">
   <a href="https://github.com/WWRJ3321/IRIDIS/releases">下载</a> ·
