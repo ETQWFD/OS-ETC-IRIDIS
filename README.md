@@ -2,6 +2,13 @@
 
 <p align="center">
   <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/icon-dark.png">
+    <img src="docs/assets/icon-light.png" alt="IRIDIS logo" width="112">
+  </picture>
+</p>
+
+<p align="center">
+  <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/assets/wordmark-dark.svg">
     <img src="docs/assets/wordmark-light.svg" alt="IRIDIS" width="320">
   </picture>
