@@ -2,6 +2,7 @@ package com.iris.localai.server
 
 import android.app.Notification
 import android.app.NotificationChannel
+import android.os.Build
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
@@ -92,9 +93,11 @@ class ApiService : LifecycleService() {
 
     private fun startForegroundCompat() {
         val nm = getSystemService(NotificationManager::class.java)
-        nm.createNotificationChannel(
-            NotificationChannel(CHANNEL, getString(R.string.api_channel_name), NotificationManager.IMPORTANCE_LOW),
-        )
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            nm.createNotificationChannel(
+                NotificationChannel(CHANNEL, getString(R.string.api_channel_name), NotificationManager.IMPORTANCE_LOW),
+            )
+        }
         val open = PendingIntent.getActivity(
             this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE,
         )

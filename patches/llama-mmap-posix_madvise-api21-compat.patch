@@ -1,0 +1,26 @@
+diff --git a/src/llama-mmap.cpp b/src/llama-mmap.cpp
+index 045489d..4b124b3 100644
+--- a/src/llama-mmap.cpp
++++ b/src/llama-mmap.cpp
+@@ -25,6 +25,21 @@
+     #endif
+ #endif
+ 
++// ETC fork: posix_madvise() and POSIX_MADV_* constants are Android API 23+;
++// madvise() and MADV_* are available at all API levels. On older Android
++// (minSdk 21) fall back — same advice values, only return-value convention
++// differs (we only check nonzero anyway).
++#if defined(__ANDROID__) && __ANDROID_API__ < 23
++#define posix_madvise(addr, len, advice) madvise(addr, len, advice)
++#ifndef POSIX_MADV_NORMAL
++#define POSIX_MADV_NORMAL     MADV_NORMAL
++#define POSIX_MADV_RANDOM     MADV_RANDOM
++#define POSIX_MADV_SEQUENTIAL MADV_SEQUENTIAL
++#define POSIX_MADV_WILLNEED   MADV_WILLNEED
++#define POSIX_MADV_DONTNEED   MADV_DONTNEED
++#endif
++#endif
++
+ #if defined(_WIN32)
+     #define WIN32_LEAN_AND_MEAN
+     #ifndef NOMINMAX

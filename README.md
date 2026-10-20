@@ -29,7 +29,7 @@
 </p>
 
 <p align="center">
-  <img alt="Android 12+" src="https://img.shields.io/badge/Android-12%2B%20armv7%2Farm64-3DDC84?logo=android&logoColor=white"/>
+  <img alt="Android 5+" src="https://img.shields.io/badge/Android%205%2B%20%28lite%29%20%2F%207%2B%20%28full%29-armv7%2Farm64-3DDC84?logo=android&logoColor=white"/>
   <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/license-Apache--2.0-blue"/></a>
   <a href="CHANGELOG.md"><img alt="Version" src="https://img.shields.io/badge/version-2.1.0--etc-5660F0"/></a>
 </p>
@@ -60,7 +60,7 @@
 2. 在「模型管理」下载或导入模型
 3. 开聊；需要工具时打开「智能体」
 
-**要求**：Android 12+；arm64（骁龙 8 Gen 1 及以上）或 armeabi-v7a（32 位，推荐 4B 以下模型）；4B 以上模型建议 12 GB 内存。
+**要求**：Lite 版 Android 5+，Full 版 Android 7+（含 LiteRT-LM NPU，Google 库最低要求 API 24）；arm64（骁龙 8 Gen 1 及以上）或 armeabi-v7a（32 位，推荐 4B 以下模型）；4B 以上模型建议 12 GB 内存。
 
 > [!NOTE]
 > 从 IRIS LocalAI 升级：2.1.0 起包名改为 `com.iridis`，不能覆盖安装。先在旧版导出备份，装新版后在 设置 › 存储 › 备份与恢复 导入。

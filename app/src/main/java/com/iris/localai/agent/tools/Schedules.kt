@@ -7,6 +7,8 @@ import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.os.Build
+import androidx.core.app.NotificationCompat
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -199,22 +201,29 @@ object ScheduleAlarms {
         armed.clear()
         list.forEach { s ->
             val p = pi(ctx, s.id)
-            val exact = runCatching { am.canScheduleExactAlarms() }.getOrDefault(false)
-            if (exact) am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, s.nextAt, p) else am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, s.nextAt, p)
+            if (Build.VERSION.SDK_INT >= 23) {
+                val exact = runCatching { am.canScheduleExactAlarms() }.getOrDefault(false)
+                if (exact) am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, s.nextAt, p)
+                else am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, s.nextAt, p)
+            } else {
+                am.set(AlarmManager.RTC_WAKEUP, s.nextAt, p)
+            }
             armed += s.id
         }
     }
 
     fun notify(ctx: Context, s: Schedule) {
         val nm = ctx.getSystemService(NotificationManager::class.java) ?: return
-        nm.createNotificationChannel(NotificationChannel(CHANNEL, "定时任务", NotificationManager.IMPORTANCE_HIGH))
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            nm.createNotificationChannel(NotificationChannel(CHANNEL, "定时任务", NotificationManager.IMPORTANCE_HIGH))
+        }
         val open = ctx.packageManager.getLaunchIntentForPackage(ctx.packageName)?.apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
             if (s.prompt.isNotBlank()) putExtra(EXTRA_PROMPT, s.prompt)
             putExtra(EXTRA_TITLE, s.title)
         }
         val content = open?.let { PendingIntent.getActivity(ctx, s.id.hashCode(), it, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE) }
-        val n = android.app.Notification.Builder(ctx, CHANNEL)
+        val n = NotificationCompat.Builder(ctx, CHANNEL)
             .setSmallIcon(android.R.drawable.ic_popup_reminder)
             .setContentTitle(s.title)
             .setContentText(if (s.prompt.isNotBlank()) "点按让 IRIDIS 执行：${s.prompt.take(60)}" else "提醒")

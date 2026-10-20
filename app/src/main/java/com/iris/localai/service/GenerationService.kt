@@ -2,6 +2,7 @@ package com.iris.localai.service
 
 import android.app.Notification
 import android.app.NotificationChannel
+import android.os.Build
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
@@ -75,8 +76,10 @@ class GenerationService : LifecycleService() {
     override fun onCreate() {
         super.onCreate()
         val nm = getSystemService(NotificationManager::class.java)
-        nm.createNotificationChannel(NotificationChannel(CHANNEL_PROGRESS, "后台生成进度", NotificationManager.IMPORTANCE_LOW))
-        nm.createNotificationChannel(NotificationChannel(CHANNEL_DONE, "回复完成提醒", NotificationManager.IMPORTANCE_DEFAULT))
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            nm.createNotificationChannel(NotificationChannel(CHANNEL_PROGRESS, "后台生成进度", NotificationManager.IMPORTANCE_LOW))
+            nm.createNotificationChannel(NotificationChannel(CHANNEL_DONE, "回复完成提醒", NotificationManager.IMPORTANCE_DEFAULT))
+        }
         wakeLock = getSystemService(PowerManager::class.java)
             .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "iris:generation")
             .apply { setReferenceCounted(false); acquire(MAX_WAKE_MS) }

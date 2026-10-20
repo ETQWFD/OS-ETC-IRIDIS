@@ -7,6 +7,8 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.BatteryManager
+import android.os.Build
+import androidx.core.app.NotificationCompat
 
 /**
  * 1.14.0: work the background asks of a running IRIS. The chat screen registers [runner] while it
@@ -145,13 +147,15 @@ object Heartbeat {
 
     private fun notify(ctx: Context, conv: String, v: HeartbeatRules.Verdict.Pending) {
         val nm = ctx.getSystemService(NotificationManager::class.java) ?: return
-        nm.createNotificationChannel(NotificationChannel(CHANNEL, "心跳检查", NotificationManager.IMPORTANCE_DEFAULT))
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            nm.createNotificationChannel(NotificationChannel(CHANNEL, "心跳检查", NotificationManager.IMPORTANCE_DEFAULT))
+        }
         val open = ctx.packageManager.getLaunchIntentForPackage(ctx.packageName)?.apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
             putExtra(EXTRA_RESUME, conv)
         }
         val content = open?.let { PendingIntent.getActivity(ctx, ("hbn-$conv").hashCode(), it, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE) }
-        val n = android.app.Notification.Builder(ctx, CHANNEL)
+        val n = NotificationCompat.Builder(ctx, CHANNEL)
             .setSmallIcon(android.R.drawable.ic_popup_sync)
             .setContentTitle("计划还有 ${v.left} 步没完成")
             .setContentText("下一步：${v.next.take(60)} · 点按继续")

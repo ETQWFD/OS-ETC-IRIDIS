@@ -20,8 +20,8 @@ val keystoreProps = Properties().apply {
 
 android {
     namespace = "com.iris.localai"
-    compileSdk = 35
-    buildToolsVersion = "35.0.0"
+    compileSdk = 36
+    buildToolsVersion = "36.0.0"
     // Optional: point at a specific NDK (e.g. an arm64-host NDK) via local.properties `ndk.path`.
     val customNdk = localProps.getProperty("ndk.path")
     if (customNdk != null) {
@@ -34,10 +34,12 @@ android {
 
     defaultConfig {
         applicationId = "com.iridis"
-        minSdk = 31
-        targetSdk = 35
-        versionCode = 178
-        versionName = "2.1.0-etc"
+        // ETC fork v2.1.1: minSdk lowered to 21 (Android 5) so older phones can install;
+        // targetSdk/compileSdk 36 (Android 16). High-version APIs are runtime-guarded.
+        minSdk = 21
+        targetSdk = 36
+        versionCode = 179
+        versionName = "2.1.1-etc"
 
         // ETC fork (OS-ETC-IRIDIS): ship both ABIs so the app runs on 32-bit (armeabi-v7a) and
         // 64-bit (arm64-v8a) phones. LiteRT-LM has no armeabi-v7a build, so the app excludes it
@@ -72,6 +74,9 @@ android {
         create("full") {
             dimension = "engines"
             versionNameSuffix = "-full"
+            // LiteRT-LM (Google AI Edge) requires API 24+; full flavor ships it so its
+            // minSdk is 24, while the lite flavor stays at 21 (Android 5).
+            minSdk = 24
             buildConfigField("boolean", "HAS_LITERT", "true")
             // Third engine: MNN-LLM (taobao-mnn model folders) in libiris_mnn.so.
             externalNativeBuild { cmake { arguments += "-DIRIS_MNN=ON" } }

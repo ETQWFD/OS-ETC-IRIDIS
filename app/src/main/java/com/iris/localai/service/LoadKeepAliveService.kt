@@ -2,6 +2,7 @@ package com.iris.localai.service
 
 import android.app.Notification
 import android.app.NotificationChannel
+import android.os.Build
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
@@ -31,8 +32,10 @@ class LoadKeepAliveService : LifecycleService() {
 
     override fun onCreate() {
         super.onCreate()
-        getSystemService(NotificationManager::class.java)
-            .createNotificationChannel(NotificationChannel(CHANNEL, "模型加载", NotificationManager.IMPORTANCE_LOW))
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            getSystemService(NotificationManager::class.java)
+                .createNotificationChannel(NotificationChannel(CHANNEL, "模型加载", NotificationManager.IMPORTANCE_LOW))
+        }
         wakeLock = getSystemService(PowerManager::class.java)
             .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "iris:model-load")
             .apply { setReferenceCounted(false); acquire(MAX_WAKE_MS) }

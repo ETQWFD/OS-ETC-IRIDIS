@@ -33,8 +33,15 @@ class QualcommNpuRuntime private constructor(context: Context) : NpuSupport {
 
     private val appContext: Context = context.applicationContext
 
-    val arch: Int? = NpuIds.hexagonArch(Build.SOC_MANUFACTURER, Build.SOC_MODEL)
-    private val soc: String = Build.SOC_MODEL.orEmpty()
+    // ETC fork: Build.SOC_MODEL / SOC_MANUFACTURER are API 31+; on older devices NPU is
+    // simply unavailable (Hexagon NPU only exists on recent Snapdragon flagships anyway).
+    private val socManufacturer: String? =
+        if (Build.VERSION.SDK_INT >= 31) Build.SOC_MANUFACTURER else null
+    private val socModel: String? =
+        if (Build.VERSION.SDK_INT >= 31) Build.SOC_MODEL else null
+
+    val arch: Int? = socModel?.let { NpuIds.hexagonArch(socManufacturer, it) }
+    private val soc: String = socModel.orEmpty()
 
     /** Directory handed to LiteRT-LM as Backend.NPU(nativeLibraryDir). */
     val dir: File = File(context.filesDir, "npu/qnn-$QNN_VERSION-v${arch ?: 0}")
@@ -59,8 +66,8 @@ class QualcommNpuRuntime private constructor(context: Context) : NpuSupport {
 
     private fun diskState(): NpuState = when {
         arch == null -> NpuState.Unsupported(
-            if (!Build.SOC_MANUFACTURER.equals("QTI", true) && !Build.SOC_MANUFACTURER.contains("qualcomm", true))
-                "此芯片（${Build.SOC_MANUFACTURER} $soc）不是高通骁龙" else "此骁龙型号（$soc）暂无 LiteRT NPU 支持",
+            if (socManufacturer == null || (!socManufacturer.equals("QTI", true) && !socManufacturer.contains("qualcomm", true)))
+                "此芯片（${socManufacturer ?: "未知"} $soc）不是高通骁龙或系统版本过低" else "此骁龙型号（$soc）暂无 LiteRT NPU 支持",
         )
         else -> when (val c = check()) {
             NpuRuntimeFiles.Check.Ok -> NpuState.Installed
