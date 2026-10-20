@@ -24,7 +24,10 @@ class ThreadPolicy(context: Context) {
         } ?: top
     }
 
-    val thermalStatus: Int get() = power?.currentThermalStatus ?: PowerManager.THERMAL_STATUS_NONE
+    // currentThermalStatus is API 29+; on older devices report no throttling.
+    val thermalStatus: Int get() =
+        if (android.os.Build.VERSION.SDK_INT >= 29) power?.currentThermalStatus ?: PowerManager.THERMAL_STATUS_NONE
+        else PowerManager.THERMAL_STATUS_NONE
 
     /** 1.7.8: the user's 资源档配置 (AppSettings.tierProfiles), read live (EngineManager wires it to the settings). */
     @Volatile var profileSource: () -> Map<String, com.iris.localai.data.TierProfile> = { emptyMap() }

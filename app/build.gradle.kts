@@ -38,8 +38,8 @@ android {
         // targetSdk/compileSdk 36 (Android 16). High-version APIs are runtime-guarded.
         minSdk = 21
         targetSdk = 36
-        versionCode = 179
-        versionName = "2.1.1-etc"
+        versionCode = 180
+        versionName = "2.1.2-etc"
 
         // ETC fork (OS-ETC-IRIDIS): ship both ABIs so the app runs on 32-bit (armeabi-v7a) and
         // 64-bit (arm64-v8a) phones. LiteRT-LM has no armeabi-v7a build, so the app excludes it

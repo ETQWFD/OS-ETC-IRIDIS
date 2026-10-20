@@ -309,11 +309,20 @@ private fun rememberReduceMotion(): Boolean {
 private fun rememberThermalStatus(): Int {
     val context = LocalContext.current
     val pm = remember { context.getSystemService(PowerManager::class.java) }
-    var status by remember { mutableStateOf(pm.currentThermalStatus) }
-    DisposableEffect(pm) {
-        val l = PowerManager.OnThermalStatusChangedListener { status = it }
-        runCatching { pm.addThermalStatusListener(context.mainExecutor, l) }
-        onDispose { runCatching { pm.removeThermalStatusListener(l) } }
+    // currentThermalStatus / OnThermalStatusChangedListener are API 29+; on older
+    // devices report THERMAL_STATUS_NONE (no throttling info available).
+    var status by remember {
+        mutableStateOf(
+            if (android.os.Build.VERSION.SDK_INT >= 29) pm.currentThermalStatus
+            else PowerManager.THERMAL_STATUS_NONE,
+        )
+    }
+    if (android.os.Build.VERSION.SDK_INT >= 29) {
+        DisposableEffect(pm) {
+            val l = PowerManager.OnThermalStatusChangedListener { status = it }
+            runCatching { pm.addThermalStatusListener(context.mainExecutor, l) }
+            onDispose { runCatching { pm.removeThermalStatusListener(l) } }
+        }
     }
     return status
 }
@@ -335,7 +344,11 @@ private fun rememberPowerSaveMode(): Boolean {
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(c: Context?, i: Intent?) { on = pm.isPowerSaveMode }
         }
-        context.registerReceiver(receiver, IntentFilter(PowerManager.ACTION_POWER_SAVE_MODE_CHANGED))
+        context.registerReceiver(
+            receiver,
+            IntentFilter(PowerManager.ACTION_POWER_SAVE_MODE_CHANGED),
+            if (android.os.Build.VERSION.SDK_INT >= 33) Context.RECEIVER_NOT_EXPORTED else 0,
+        )
         onDispose { context.unregisterReceiver(receiver) }
     }
     return on

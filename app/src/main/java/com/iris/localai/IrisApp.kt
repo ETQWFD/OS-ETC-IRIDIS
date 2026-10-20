@@ -80,7 +80,11 @@ class IrisApp : Application() {
                     if (t != Int.MIN_VALUE) com.iris.localai.engine.ThermalGovernor.onTemperature(t / 10f)
                 }
             }
-            registerReceiver(r, android.content.IntentFilter(android.content.Intent.ACTION_BATTERY_CHANGED))?.let { r.onReceive(this, it) }
+            registerReceiver(
+                r,
+                android.content.IntentFilter(android.content.Intent.ACTION_BATTERY_CHANGED),
+                if (android.os.Build.VERSION.SDK_INT >= 33) android.content.Context.RECEIVER_NOT_EXPORTED else 0,
+            )?.let { r.onReceive(this, it) }
         }
         container.scope.launch {
             container.settings.settings.collect { com.iris.localai.engine.ThermalGovernor.setLimit(it.thermalLimitC) }
