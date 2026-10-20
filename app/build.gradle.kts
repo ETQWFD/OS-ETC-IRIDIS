@@ -37,9 +37,12 @@ android {
         minSdk = 31
         targetSdk = 35
         versionCode = 178
-        versionName = "2.1.0"
+        versionName = "2.1.0-etc"
 
-        ndk { abiFilters += "arm64-v8a" }
+        // ETC fork (OS-ETC-IRIDIS): ship both ABIs so the app runs on 32-bit (armeabi-v7a) and
+        // 64-bit (arm64-v8a) phones. LiteRT-LM has no armeabi-v7a build, so the app excludes it
+        // at runtime on 32-bit devices (see full EngineFactory / BackendEnvironment).
+        ndk { abiFilters += listOf("armeabi-v7a", "arm64-v8a") }
         externalNativeBuild {
             cmake {
                 arguments += listOf(

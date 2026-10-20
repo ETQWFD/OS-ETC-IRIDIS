@@ -1,4 +1,13 @@
-IRIDIS (IRIS LocalAI)
+OS-ETC-IRIDIS (ETC fork of IRIDIS / IRIS LocalAI)
 Copyright 2024-2026 The IRIDIS Authors
+Copyright 2026 ETC (ETQWFD) — OS-ETC-IRIDIS fork
+
+OS-ETC-IRIDIS is a fork of IRIDIS by WWRJ3321 (https://github.com/WWRJ3321/IRIDIS).
+All original authorship, copyright and credits are preserved; the ETC fork adds:
+  - armeabi-v7a (32-bit) builds for lite and full flavours,
+  - 32-bit proot / Alpine (armv7) support for the built-in Linux terminal,
+  - ABI-aware engine handling (LiteRT-LM remains 64-bit only),
+  - new OS-ETC-IRIDIS branding and icon.
 
 This product includes software developed by third parties; see THIRD_PARTY_NOTICES.md and app/src/main/assets/licenses/.
+For support, contact the OS-ETC-IRIDIS developer: 2416444244@qq.com

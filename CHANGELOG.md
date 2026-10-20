@@ -2,6 +2,24 @@
 
 发布版本记录见 [GitHub Releases](https://github.com/WWRJ3321/IRIDIS/releases)。本文件从开源首个版本开始记录。
 
+## v2.1.0-etc — 2026-10-20（OS-ETC-IRIDIS 分支）
+
+**ETC 分支首发**，基于 IRIDIS v2.1.0（原作者 WWRJ3321，版权与致谢完整保留）。
+
+### 新增（ETC）
+- 应用更名为 **OS-ETC-IRIDIS**，启用新企业风格图标（深色底 · 三棱虹彩标识）。
+- **32 位支持**：默认同时构建 `armeabi-v7a` 与 `arm64-v8a`，32 位 / 旧款手机可正常安装运行。
+  - llama.cpp（GGUF）与 MNN 引擎均支持 32 位；LiteRT-LM 官方仅 64 位库，32 位设备自动隐藏该引擎并给出提示。
+  - `LlamaNative` 的指令集检查改为 ABI 感知（32 位不再要求 dotprod/i8mm/fp16）。
+  - OpenCL 探测补全 32 位库路径（`/vendor/lib`）。
+- 内置 Linux 终端支持 32 位：jniLibs 新增 armeabi-v7a 版 proot / proot-loader / talloc / android-shmem，Alpine rootfs 按 ABI 下载（aarch64 / armv7）。
+- MNN 构建脚本支持双 ABI（`ANDROID_ABI=armeabi-v7a` 时关闭 ARM82/KleidiAI，改用 NEON）。
+- README / NOTICE / 关于页更新为 OS-ETC-IRIDIS 品牌与支持邮箱（2416444244@qq.com）。
+
+### 已知限制（32 位）
+- LiteRT-LM（.litertlm / NPU）仅 arm64 可用；32 位建议使用 GGUF 或 MNN 模型。
+- 32 位机型建议 4B 以下模型；更吃内存的模型请用 64 位设备。
+
 ## v2.1.0 — 2026-10-19
 
 首个正式版。**包名改为 `com.iridis`，不能覆盖安装旧版**：请先在旧版 设置 › 备份 导出，安装新版后导入，确认无误再卸载旧版。

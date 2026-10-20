@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- OS-ETC-IRIDIS notification icon: single chevron monogram (matches launcher). -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp" android:height="24dp" android:viewportWidth="48" android:viewportHeight="48">
-    <path android:fillColor="#FFFFFFFF" android:pathData="M23.252,4.656 A0.864,0.864 0 0,1 24.748,4.656 L33.165,19.234 A0.864,0.864 0 0,1 33.165,20.098 L24.748,34.675 A0.864,0.864 0 0,1 23.252,34.675 L14.835,20.098 A0.864,0.864 0 0,1 14.835,19.234 Z M12.519,23.244 A0.864,0.864 0 0,1 14.015,23.244 L22.296,37.584 A0.864,0.864 0 0,1 21.771,38.851 L2.181,44.100 A0.864,0.864 0 0,1 1.209,42.834 Z M46.791,42.834 A0.864,0.864 0 0,1 45.819,44.100 L26.229,38.851 A0.864,0.864 0 0,1 25.704,37.584 L33.985,23.244 A0.864,0.864 0 0,1 35.481,23.244 Z" />
+    <path android:fillColor="#FFFFFFFF" android:pathData="M13,12 L24,23 L35,12 L31,8 L24,15 L17,8 Z M13,25 L24,36 L35,25 L31,21 L24,28 L17,21 Z" />
 </vector>

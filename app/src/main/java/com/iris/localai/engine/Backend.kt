@@ -10,6 +10,10 @@ import com.iris.localai.data.ModelFormat
  * along [BackendPlanner.chain] (NPU → GPU → CPU), remembers native crashes ([BackendCrashMemory])
  * and reports the backend that is really in use ([ModelDetails.activeBackend]).
  */
+/** ETC fork (OS-ETC-IRIDIS): arm64 runs the dotprod/i8mm build; armeabi-v7a runs the NEON build. */
+internal val isArm64: Boolean =
+    android.os.Build.SUPPORTED_ABIS.firstOrNull()?.startsWith("arm64") == true
+
 enum class Backend(val label: String) {
     CPU("CPU"),
     GPU("GPU"),
@@ -38,8 +42,12 @@ data class BackendEnvironment(
 ) {
     companion object {
         private val OPENCL_PATHS = listOf(
+            // 64-bit
             "/vendor/lib64/libOpenCL.so", "/system/vendor/lib64/libOpenCL.so", "/system/lib64/libOpenCL.so",
             "/vendor/lib64/egl/libGLES_mali.so",
+            // ETC fork (OS-ETC-IRIDIS): 32-bit devices keep the vendor libs under /vendor/lib.
+            "/vendor/lib/libOpenCL.so", "/system/vendor/lib/libOpenCL.so", "/system/lib/libOpenCL.so",
+            "/vendor/lib/egl/libGLES_mali.so",
         )
 
         /** 2.0: base id (SM8750P / SM8750-AB → sm8750), the same rule the LiteRT engine uses ([NpuIds]). */
@@ -52,7 +60,9 @@ data class BackendEnvironment(
                 hasOpenCl = OPENCL_PATHS.any { java.io.File(it).exists() },
                 npuSoc = npu?.takeIf { it.chipLabel != null }?.let { socModel() },
                 npuRuntimeInstalled = npu?.state?.value is NpuState.Installed,
-                fullFlavor = ModelFormat.LITERT in EngineFactory.supportedFormats,
+                // ETC fork: on 32-bit the full flavour still ships MNN (LiteRT-LM is arm64-only,
+                // see the full EngineFactory), so "full" is any extra engine being present.
+                fullFlavor = EngineFactory.supportedFormats.any { it != ModelFormat.GGUF },
             )
         }
     }
@@ -84,7 +94,7 @@ object BackendCapabilities {
         val noCl = "本机没有可用的 OpenCL 驱动"
         return when (format) {
             ModelFormat.GGUF -> listOf(
-                BackendOption(Backend.CPU, true, detail = "llama.cpp · ARM KleidiAI"),
+                BackendOption(Backend.CPU, true, detail = if (isArm64) "llama.cpp · ARM KleidiAI" else "llama.cpp · NEON"),
                 BackendOption(Backend.GPU, env.hasOpenCl, if (env.hasOpenCl) null else noCl, "Adreno · OpenCL（Q4_0 / Q8_0 最快）"),
                 BackendOption(Backend.NPU, false, "llama.cpp 没有高通 NPU 后端；NPU 请用 _sm8750 编译的 .litertlm 模型"),
             )
@@ -123,7 +133,7 @@ object BackendCapabilities {
                     BackendOption(Backend.NPU, false, "此版本不含 MNN"),
                 )
                 listOf(
-                    BackendOption(Backend.CPU, true, detail = "ARMv8.2 FP16 · KleidiAI"),
+                    BackendOption(Backend.CPU, true, detail = if (isArm64) "ARMv8.2 FP16 · KleidiAI" else "NEON"),
                     BackendOption(Backend.GPU, env.hasOpenCl, if (env.hasOpenCl) null else noCl, "OpenCL"),
                     BackendOption(Backend.NPU, false, "未编入 MNN 的 QNN 后端（需按芯片离线转换的专用模型）"),
                 )

@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">IRIDIS</string>
+    <string name="app_name">OS-ETC-IRIDIS</string>
     <string name="api_channel_name">本地 API 服务</string>
-    <string name="api_notification_title">IRIDIS API 服务运行中</string>
+    <string name="api_notification_title">OS-ETC-IRIDIS API 服务运行中</string>
     <string name="api_notification_text">OpenAI 兼容接口 · 端口 %1$d</string>
     <string name="api_stop">停止</string>
 </resources>

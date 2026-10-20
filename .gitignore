@@ -20,3 +20,8 @@ captures/
 # never publish signing material
 /keystore/
 *.p12
+
+# local dev / session artifacts
+/.kotlin/
+/.creative-design/
+/docs/_shots/

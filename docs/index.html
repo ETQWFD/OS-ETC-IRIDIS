@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OS-ETC-IRIDIS — 一站式安卓本地 AI 平台</title>
+<meta name="description" content="OS-ETC-IRIDIS 是 IRIDIS 的 ETC 分支：一站式安卓本地 AI 平台，离线运行、数据不出手机，32 位与 64 位手机都能用。">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Cpath fill='%235660F0' d='M13 10 L24 21 L35 10 L31 6 L24 13 L17 6 Z M13 24 L24 35 L35 24 L31 20 L24 27 L17 20 Z'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="https://miaoda.feishu.cn/fonts/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap">
+<style>
+  :root{
+    --bg:#F6F8FB; --surface:#FFFFFF; --ink:#101828; --ink-2:#475467; --ink-3:#667085;
+    --line:#E4E7EC; --brand:#5660F0; --brand-2:#18B4D2; --navy:#0E1626; --navy-2:#16213A;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    font-family:"Noto Sans SC","PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif;
+    background:var(--bg); color:var(--ink); line-height:1.7; -webkit-font-smoothing:antialiased;
+  }
+  a{color:var(--brand);text-decoration:none}
+  a:hover{text-decoration:underline}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 20px}
+  /* ===== 导航 ===== */
+  header.site{
+    position:sticky;top:0;z-index:50;background:rgba(246,248,251,.92);backdrop-filter:blur(8px);
+    border-bottom:1px solid var(--line);
+  }
+  .nav{display:flex;align-items:center;justify-content:space-between;height:60px}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:700;color:var(--ink)}
+  .brand svg{width:26px;height:26px;display:block}
+  .nav-links{display:flex;align-items:center;gap:6px;list-style:none}
+  .nav-links a{display:block;padding:6px 12px;border-radius:8px;color:var(--ink-2);font-size:15px}
+  .nav-links a:hover{color:var(--ink);background:var(--surface);text-decoration:none}
+  .nav-cta{padding:6px 14px!important;background:var(--brand);color:#fff!important;border-radius:8px}
+  .nav-toggle{display:none;background:none;border:0;cursor:pointer;width:40px;height:40px;border-radius:8px}
+  .nav-toggle span{display:block;width:18px;height:2px;background:var(--ink);margin:4px auto;border-radius:2px}
+  @media(max-width:720px){
+    .nav-toggle{display:block}
+    .nav-links{display:none;position:absolute;top:60px;left:0;right:0;background:var(--surface);border-bottom:1px solid var(--line);flex-direction:column;align-items:stretch;padding:8px}
+    .nav-links.open{display:flex}
+    .nav-links a{padding:12px 16px}
+  }
+  /* ===== Hero ===== */
+  .hero{
+    position:relative;color:#fff;background:var(--navy);overflow:hidden;
+  }
+  .hero-bg{position:absolute;inset:0;background-image:url("assets/site/hero.jpg");background-size:cover;background-position:center;opacity:.9}
+  .hero::after{content:"";position:absolute;inset:0;background:linear-gradient(100deg,rgba(14,22,38,.88) 22%,rgba(14,22,38,.55) 55%,rgba(14,22,38,.25))}
+  .hero-inner{position:relative;z-index:1;padding:96px 0 88px;max-width:1080px;margin:0 auto;padding-left:20px;padding-right:20px}
+  .eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:13px;letter-spacing:.06em;color:#A5B4FC;border:1px solid rgba(165,180,252,.35);border-radius:999px;padding:5px 14px;margin-bottom:20px}
+  .hero h1{font-size:44px;line-height:1.25;font-weight:700;letter-spacing:-.01em;max-width:640px}
+  .hero .sub{margin-top:16px;font-size:17px;color:#D3D9E6;max-width:560px}
+  .hero .cta{display:flex;gap:12px;margin-top:32px;flex-wrap:wrap}
+  .btn{display:inline-flex;align-items:center;gap:8px;padding:12px 22px;border-radius:10px;font-weight:500;font-size:15px;transition:transform .15s}
+  .btn:hover{text-decoration:none;transform:translateY(-1px)}
+  .btn-primary{background:var(--brand);color:#fff}
+  .btn-ghost{background:rgba(255,255,255,.08);color:#fff;border:1px solid rgba(255,255,255,.28)}
+  .btn-ghost:hover{background:rgba(255,255,255,.16)}
+  .hero-stats{display:flex;gap:40px;margin-top:56px;flex-wrap:wrap}
+  .hero-stats .s b{font-size:26px;font-weight:700;color:#fff;display:block}
+  .hero-stats .s span{font-size:13px;color:#98A2B3}
+  @media(max-width:720px){
+    .hero-inner{padding:64px 16px 56px}
+    .hero h1{font-size:30px}
+    .hero .sub{font-size:15px}
+    .hero-stats{gap:24px;margin-top:40px}
+  }
+  /* ===== 区块 ===== */
+  section{padding:72px 0}
+  .sec-head{max-width:640px;margin-bottom:40px}
+  .sec-head .k{font-size:13px;font-weight:500;letter-spacing:.08em;color:var(--brand)}
+  .sec-head h2{font-size:30px;font-weight:700;margin-top:8px;letter-spacing:-.01em}
+  .sec-head p{color:var(--ink-2);margin-top:10px;font-size:15px}
+  @media(max-width:720px){section{padding:52px 0}.sec-head h2{font-size:24px}}
+  /* ===== 特性 ===== */
+  .feat{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  .feat .f{border:1px solid var(--line);border-radius:12px;background:var(--surface);padding:24px;display:flex;flex-direction:column;gap:10px;min-width:0}
+  .feat .f svg{width:26px;height:26px;color:var(--brand)}
+  .feat .f h3{font-size:16px;font-weight:600}
+  .feat .f p{font-size:14px;color:var(--ink-2)}
+  .feat .f .tag{margin-top:auto;font-size:12px;color:var(--ink-3)}
+  @media(max-width:900px){.feat{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:560px){.feat{grid-template-columns:1fr}}
+  /* ===== 下载 ===== */
+  .dl-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .dl{border:1px solid var(--line);border-radius:12px;background:var(--surface);padding:26px;display:flex;flex-direction:column;gap:12px}
+  .dl h3{font-size:18px;font-weight:600;display:flex;align-items:center;gap:10px}
+  .dl .badge{font-size:12px;font-weight:500;border-radius:6px;padding:2px 8px}
+  .badge-lite{background:#EFF4FF;color:#3538CD}
+  .badge-full{background:#ECFDF3;color:#067647}
+  .dl p{font-size:14px;color:var(--ink-2)}
+  .dl ul{list-style:none;display:flex;flex-direction:column;gap:6px;font-size:14px;color:var(--ink-2)}
+  .dl ul li{padding-left:18px;position:relative}
+  .dl ul li::before{content:"";position:absolute;left:0;top:9px;width:6px;height:6px;border-radius:50%;background:var(--brand)}
+  .dl .btn{align-self:flex-start;margin-top:6px}
+  .req{margin-top:18px;font-size:13px;color:var(--ink-3);border-top:1px dashed var(--line);padding-top:14px}
+  @media(max-width:720px){.dl-grid{grid-template-columns:1fr}}
+  /* ===== 步骤 ===== */
+  .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;counter-reset:step}
+  .step{border-top:2px solid var(--brand);padding:18px 4px 4px;min-width:0}
+  .step b{display:block;font-size:13px;color:var(--brand);letter-spacing:.06em;margin-bottom:6px}
+  .step h3{font-size:16px;font-weight:600;margin-bottom:6px}
+  .step p{font-size:14px;color:var(--ink-2)}
+  @media(max-width:720px){.steps{grid-template-columns:1fr;gap:24px}}
+  /* ===== 支持 ===== */
+  .support{background:var(--navy);color:#fff;border-radius:16px;padding:44px 40px;display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap}
+  .support h2{font-size:24px;font-weight:700}
+  .support p{color:#A5B4FC;margin-top:8px;font-size:14px}
+  .support .mail{font-size:20px;font-weight:700;color:#fff;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.22);border-radius:10px;padding:12px 20px;display:inline-flex;align-items:center;gap:10px}
+  @media(max-width:720px){.support{padding:32px 24px}}
+  /* ===== 页脚 ===== */
+  footer{border-top:1px solid var(--line);padding:36px 0;font-size:13px;color:var(--ink-3)}
+  footer .row{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;align-items:center}
+  footer a{color:var(--ink-2)}
+</style>
+</head>
+<body>
+
+<header class="site">
+  <div class="wrap nav">
+    <a class="brand" href="#top" aria-label="OS-ETC-IRIDIS 首页">
+      <svg viewBox="0 0 48 48" fill="none" aria-hidden="true">
+        <path fill="#5660F0" d="M13 10 L24 21 L35 10 L31 6 L24 13 L17 6 Z M13 24 L24 35 L35 24 L31 20 L24 27 L17 20 Z M13 38 L24 49 L35 38 L31 34 L24 41 L17 34 Z" transform="translate(0,-4)"/>
+      </svg>
+      OS-ETC-IRIDIS
+    </a>
+    <button class="nav-toggle" id="navToggle" aria-label="打开菜单" aria-expanded="false"><span></span><span></span><span></span></button>
+    <ul class="nav-links" id="navLinks">
+      <li><a href="#features">特性</a></li>
+      <li><a href="#download">下载</a></li>
+      <li><a href="manual.html">使用手册</a></li>
+      <li><a href="#support">支持</a></li>
+      <li><a class="nav-cta" href="https://github.com/ETQWFD/OS-ETC-IRIDIS" target="_blank" rel="noopener">GitHub</a></li>
+    </ul>
+  </div>
+</header>
+
+<div class="hero" id="top">
+  <div class="hero-bg" aria-hidden="true"></div>
+  <div class="hero-inner">
+    <span class="eyebrow">OS-ETC-IRIDIS · IRIDIS 的 ETC 分支</span>
+    <h1>一站式安卓本地 AI 平台<br>离线运行 · 数据不出手机</h1>
+    <p class="sub">GGUF · MNN · LiteRT-LM 三大引擎，CPU / GPU / NPU 按机型选最快。完整保留原作者 WWRJ3321 的一切，并新增 32 位支持 —— 32 位与 64 位手机都能正常使用。</p>
+    <div class="cta">
+      <a class="btn btn-primary" href="#download">下载 APK</a>
+      <a class="btn btn-ghost" href="manual.html">查看使用手册</a>
+    </div>
+    <div class="hero-stats">
+      <div class="s"><b>3</b><span>推理引擎</span></div>
+      <div class="s"><b>100%</b><span>本地离线</span></div>
+      <div class="s"><b>armv7 + arm64</b><span>双架构支持</span></div>
+    </div>
+  </div>
+</div>
+
+<section id="features">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="k">FEATURES</div>
+      <h2>为手机而生的本地 AI</h2>
+      <p>推理、语音、记忆都在本机完成，飞行模式照常可用；需要联网的功能，由你手动授权。</p>
+    </div>
+    <div class="feat">
+      <div class="f">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M12 3v18M3 12h18M5 5l4 4M19 5l-4 4M5 19l4-4M19 19l-4-4" stroke-linecap="round"/></svg>
+        <h3>三大推理引擎</h3>
+        <p>llama.cpp（GGUF）、MNN、LiteRT-LM 自动择优：CPU、Adreno GPU、高通 NPU 按机型选最快。</p>
+        <span class="tag">LiteRT-LM 官方仅 64 位库，32 位设备自动隐藏</span>
+      </div>
+      <div class="f">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M12 3a9 9 0 0 1 9 9c0 5-3.5 8-9 8s-9-3-9-8a9 9 0 0 1 9-9z" stroke-linejoin="round"/><path d="M9 12l2.2 2.2L15 9.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <h3>完全离线 · 隐私优先</h3>
+        <p>对话、记忆、文件只存本机，禁止云备份。只有下载模型、开启 API 或智能体联网时才连网。</p>
+      </div>
+      <div class="f">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 17l6-6-6-6M20 21h-8M13 21l7-7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <h3>智能体与终端</h3>
+        <p>读写文件、内置 Linux 终端（32/64 位 proot + Alpine）、联网搜索、定时任务，改动可撤销。</p>
+      </div>
+      <div class="f">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M8 9h8M8 13h5M10 4h4l2 2h4a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h4l2-2z" stroke-linejoin="round"/></svg>
+        <h3>记忆与知识库</h3>
+        <p>长期记忆自动注入对话；本地文档检索（txt / md / html），消息可编辑、可多版本重新生成。</p>
+      </div>
+      <div class="f">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M12 3a9 9 0 0 1 9 9c0 5-3.5 8-9 8a9 9 0 0 1-9-8 9 9 0 0 1 9-9z" stroke-linejoin="round"/><path d="M12 12l4-2" stroke-linecap="round"/></svg>
+        <h3>本地语音</h3>
+        <p>离线识别与合成，免提对话，开口即可打断；语音包在 App 内按需下载。</p>
+      </div>
+      <div class="f">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 6h16v10H4zM4 20h16M8 20v-4M16 20v-4" stroke-linejoin="round"/></svg>
+        <h3>局域网 API</h3>
+        <p>OpenAI / Ollama 兼容接口（默认 127.0.0.1:8686），手机就是模型服务器；开放局域网强制 API Key。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="download" style="background:var(--surface);border-top:1px solid var(--line);border-bottom:1px solid var(--line)">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="k">DOWNLOAD</div>
+      <h2>下载安装</h2>
+      <p>两个版本都支持 32 位（armeabi-v7a）与 64 位（arm64-v8a）手机，按需选择。</p>
+    </div>
+    <div class="dl-grid">
+      <div class="dl">
+        <h3>Lite 版 <span class="badge badge-lite">轻量 · 推荐</span></h3>
+        <p>GGUF 推理 + 本地语音 + 智能体 + 局域网 API，体积更小，日常够用。</p>
+        <ul>
+          <li>llama.cpp 引擎（GGUF 模型）</li>
+          <li>32 位 / 64 位全功能可用</li>
+          <li>安装包更小，低配机流畅</li>
+        </ul>
+        <a class="btn btn-primary" href="https://github.com/ETQWFD/OS-ETC-IRIDIS/releases/latest" target="_blank" rel="noopener">下载 Lite APK</a>
+      </div>
+      <div class="dl">
+        <h3>Full 版 <span class="badge badge-full">全部引擎</span></h3>
+        <p>在 Lite 基础上增加 MNN 与 LiteRT-LM 引擎，支持更多模型格式与 NPU。</p>
+        <ul>
+          <li>GGUF + MNN（32/64 位均可）</li>
+          <li>LiteRT-LM + NPU（仅 64 位设备）</li>
+          <li>安装包更大，功能最全</li>
+        </ul>
+        <a class="btn btn-primary" href="https://github.com/ETQWFD/OS-ETC-IRIDIS/releases/latest" target="_blank" rel="noopener">下载 Full APK</a>
+      </div>
+    </div>
+    <p class="req">系统要求：Android 12 及以上；32 位设备建议使用 4B 以下模型，64 位设备 4B 以上建议 12 GB 内存。APK 同时可从 GitHub Releases 获取。</p>
+  </div>
+</section>
+
+<section id="start">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="k">QUICK START</div>
+      <h2>三步开始</h2>
+    </div>
+    <div class="steps">
+      <div class="step"><b>01</b><h3>安装 APK</h3><p>从上方下载 Lite 或 Full 版，允许安装未知来源应用后安装。</p></div>
+      <div class="step"><b>02</b><h3>导入模型</h3><p>在「模型管理」下载 GGUF 模型，或导入 .gguf / MNN 模型文件夹。</p></div>
+      <div class="step"><b>03</b><h3>开聊</h3><p>选择模型开始对话；需要工具时打开「智能体」。</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="support" style="padding-bottom:96px">
+  <div class="wrap">
+    <div class="support">
+      <div>
+        <h2>使用中有任何问题？</h2>
+        <p>发送邮件给开发者，我们会尽快回复并修复问题。</p>
+      </div>
+      <a class="mail" href="mailto:2416444244@qq.com">2416444244@qq.com</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap row">
+    <div>
+      OS-ETC-IRIDIS © 2026 · 原作者 WWRJ3321（IRIDIS）版权保留 · ETC 分支（ETQWFD）维护<br>
+      开源协议 Apache-2.0 · 官网 · <a href="manual.html">使用手册</a>
+    </div>
+    <div><a href="#top">回到顶部</a></div>
+  </div>
+</footer>
+
+<script>
+  var toggle = document.getElementById('navToggle');
+  var links = document.getElementById('navLinks');
+  toggle.addEventListener('click', function () {
+    var open = links.classList.toggle('open');
+    toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+  });
+  links.addEventListener('click', function (e) {
+    if (e.target.tagName === 'A') links.classList.remove('open');
+  });
+</script>
+</body>
+</html>

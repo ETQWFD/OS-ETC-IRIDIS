@@ -23,9 +23,24 @@ set(GGML_LLAMAFILE ON CACHE BOOL "" FORCE)
 # dotprod + i8mm + fp16 are present on every Snapdragon 8 Gen 1 and newer (incl. SM8750).
 # The app checks /proc/cpuinfo before loading this library, so unsupported CPUs get a clear
 # message instead of SIGILL.
-set(GGML_CPU_ARM_ARCH "armv8.2-a+dotprod+i8mm+fp16" CACHE STRING "" FORCE)
-option(IRIS_KLEIDIAI "Use Arm KleidiAI micro-kernels (downloads at configure time)" ON)
-set(GGML_CPU_KLEIDIAI ${IRIS_KLEIDIAI} CACHE BOOL "" FORCE)
+# ETC fork (OS-ETC-IRIDIS): on armeabi-v7a (32-bit) those are arm64-only features — compile for
+# armv7-a (NEON is on by default on NDK armv7) and disable KleidiAI; the Kotlin CpuFeatures
+# check is ABI-aware (see LlamaNative).
+if (ANDROID_ABI STREQUAL "armeabi-v7a")
+    set(GGML_CPU_ARM_ARCH "armv7-a" CACHE STRING "" FORCE)
+    set(IRIS_KLEIDIAI OFF CACHE BOOL "" FORCE)
+    set(GGML_CPU_KLEIDIAI OFF CACHE BOOL "" FORCE)
+    # llamafile's SGEMM needs FP16 vector arithmetic (armv8.2+); 32-bit falls back to
+    # llama.cpp's own NEON kernels.
+    set(GGML_LLAMAFILE OFF CACHE BOOL "" FORCE)
+    # 32-bit: size_t is 32-bit and llama.cpp's OpenCL backend narrows int64_t in braced
+    # initializer lists (fine on arm64 where size_t is 64-bit).
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-narrowing")
+else()
+    set(GGML_CPU_ARM_ARCH "armv8.2-a+dotprod+i8mm+fp16" CACHE STRING "" FORCE)
+    option(IRIS_KLEIDIAI "Use Arm KleidiAI micro-kernels (downloads at configure time)" ON)
+    set(GGML_CPU_KLEIDIAI ${IRIS_KLEIDIAI} CACHE BOOL "" FORCE)
+endif()
 
 # ---- Adreno GPU via ggml's OpenCL backend ----
 # The app never links the vendor libOpenCL.so directly: opencl/cl_shim.c forwards every cl* call

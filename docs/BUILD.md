@@ -17,8 +17,8 @@ cp local.properties.example local.properties   # 填写 sdk.dir
 ./gradlew testFullDebugUnitTest   # JVM 单元测试（lite 版用 testLiteDebugUnitTest）
 ./gradlew assembleFullDebug       # app/build/outputs/apk/full/debug/（lite 版：assembleLiteDebug）
 ```
-产品 flavors：`lite`（仅 llama.cpp）/ `full`（另含 LiteRT-LM + MNN），Gradle 任务名都带 flavor 前缀。
-原生库由 Gradle 调用 CMake 从 llama.cpp 源码编译（首次约 5–15 分钟），静态链接为单个 `libiris_llama.so`，按 `armv8.2-a+dotprod+i8mm+fp16` 优化并启用 KleidiAI 内核。无网络环境可加 `-Piris.kleidiai=OFF` 跳过 KleidiAI 下载。
+产品 flavors：`lite`（仅 llama.cpp）/ `full`（另含 LiteRT-LM + MNN）。ETC 分支（OS-ETC-IRIDIS）默认同时构建 `armeabi-v7a`（32 位）与 `arm64-v8a`；MNN 用 `ANDROID_ABI=armeabi-v7a sh scripts/build-mnn-android.sh` 产出 32 位静态库，arm64 构建会自动关闭 KleidiAI/ARM82。，Gradle 任务名都带 flavor 前缀。
+原生库由 Gradle 调用 CMake 从 llama.cpp 源码编译（双 ABI 首次约 10–25 分钟），静态链接为单个 `libiris_llama.so`，按 `armv8.2-a+dotprod+i8mm+fp16` 优化并启用 KleidiAI 内核。无网络环境可加 `-Piris.kleidiai=OFF` 跳过 KleidiAI 下载。
 ### Release
 在项目根目录创建 `keystore.properties`（不要提交；路径相对项目根目录）：
 ```properties

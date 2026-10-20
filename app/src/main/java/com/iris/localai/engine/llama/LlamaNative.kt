@@ -56,8 +56,15 @@ object LlamaNative {
     ): String
 }
 
-/** The native library is compiled for armv8.2-a+dotprod+i8mm+fp16; refuse to load it elsewhere. */
+/**
+ * On arm64 the native library is compiled for armv8.2-a+dotprod+i8mm+fp16; refuse to load it
+ * elsewhere. ETC fork (OS-ETC-IRIDIS): on 32-bit devices (armeabi-v7a) the library is built for
+ * armv7-a + NEON instead, so the v8.2 requirement is skipped entirely.
+ */
 object CpuFeatures {
+    private val needsArmV82: Boolean =
+        android.os.Build.SUPPORTED_ABIS.firstOrNull()?.startsWith("arm64") == true
+
     private val features: Set<String> by lazy {
         runCatching {
             // Every core repeats the same "Features" line; the first one is enough.
@@ -69,6 +76,7 @@ object CpuFeatures {
     }
 
     fun missingForLlama(): String? {
+        if (!needsArmV82) return null // 32-bit build needs only armv7-a + NEON
         if (features.isEmpty()) return null // cannot tell; let System.loadLibrary decide
         val required = mapOf("asimddp" to "dotprod", "i8mm" to "i8mm", "asimdhp" to "fp16")
         val missing = required.filterKeys { it !in features }.values

@@ -3,14 +3,14 @@
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/assets/icon-dark.png">
-    <img src="docs/assets/icon-light.png" alt="IRIDIS logo" width="112">
+    <img src="docs/assets/icon-light.png" alt="OS-ETC-IRIDIS logo" width="112">
   </picture>
 </p>
 
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/assets/wordmark-dark.svg">
-    <img src="docs/assets/wordmark-light.svg" alt="IRIDIS" width="320">
+    <img src="docs/assets/wordmark-light.svg" alt="OS-ETC-IRIDIS" width="320">
   </picture>
 </p>
 
@@ -20,7 +20,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/WWRJ3321/IRIDIS/releases/latest"><b>Download APK</b></a> ·
+  <a href="https://github.com/WWRJ3321/OS-ETC-IRIDIS/releases/latest"><b>Download APK</b></a> ·
   <a href="docs/BUILD.md">Build</a> ·
   <a href="docs/API.md">API</a> ·
   <a href="docs/ARCHITECTURE.md">Architecture</a> ·
@@ -33,7 +33,7 @@
   <a href="CHANGELOG.md"><img alt="Version" src="https://img.shields.io/badge/version-2.1.0-5660F0"/></a>
 </p>
 
-<p align="center"><img src="docs/assets/cover.webp" alt="IRIDIS: on-device AI for Android" width="720"></p>
+<p align="center"><img src="docs/assets/cover.webp" alt="OS-ETC-IRIDIS: on-device AI for Android" width="720"></p>
 
 ---
 
@@ -51,7 +51,7 @@
 
 ## Quick start
 
-1. Install the APK from [Releases](https://github.com/WWRJ3321/IRIDIS/releases/latest)
+1. Install the APK from [Releases](https://github.com/WWRJ3321/OS-ETC-IRIDIS/releases/latest)
 2. Download or import a model in Models
 3. Start chatting; turn on Agent when you need tools
 

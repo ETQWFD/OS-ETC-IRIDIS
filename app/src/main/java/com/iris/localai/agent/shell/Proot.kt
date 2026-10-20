@@ -71,9 +71,22 @@ object ProcessRun {
  */
 object AlpineRootfs {
     const val VERSION = "3.24.2"
-    const val URL = "https://dl-cdn.alpinelinux.org/alpine/v3.24/releases/aarch64/alpine-minirootfs-3.24.2-aarch64.tar.gz"
-    const val SHA256 = "9bf70a7f18ea44094cbb5f70c58f9af129c8214745743db0e68e5502cc2ce773"
-    const val SIZE = 4_028_030L
+
+    /** ETC fork (OS-ETC-IRIDIS): aarch64 rootfs on 64-bit devices, armv7 rootfs on 32-bit ones. */
+    private val arch: String =
+        if ((android.os.Build.SUPPORTED_ABIS.firstOrNull() ?: "").startsWith("arm64")) "aarch64" else "armv7"
+
+    val URL: String =
+        "https://dl-cdn.alpinelinux.org/alpine/v3.24/releases/$arch/alpine-minirootfs-3.24.2-$arch.tar.gz"
+
+    // aarch64: 9bf70a7f18ea44094cbb5f70c58f9af129c8214745743db0e68e5502cc2ce773 (4_028_030 bytes)
+    // armv7:   5552f1ef2398cee46ef2cf733f8f1258f39a77ad065dfd47282fc0df9fe1976c (3_257_716 bytes)
+    val SHA256: String =
+        if (arch == "aarch64") "9bf70a7f18ea44094cbb5f70c58f9af129c8214745743db0e68e5502cc2ce773"
+        else "5552f1ef2398cee46ef2cf733f8f1258f39a77ad065dfd47282fc0df9fe1976c"
+
+    val SIZE: Long =
+        if (arch == "aarch64") 4_028_030L else 3_180_242L
 
     fun base(ctx: Context) = File(ctx.filesDir, "alpine")
     fun rootfs(ctx: Context) = File(base(ctx), "rootfs")
@@ -210,7 +223,7 @@ class ProotShell(context: Context, private val workspace: () -> File) : ShellRun
     private val ctx = context.applicationContext
 
     override fun run(command: String, cwd: File, timeoutMs: Long, maxBytes: Int): ShellOutput {
-        if (!AlpineRootfs.supported(ctx)) return ShellOutput(127, "内置 Linux 不可用：安装包里缺少 proot（只支持 arm64）", false, false)
+        if (!AlpineRootfs.supported(ctx)) return ShellOutput(127, "内置 Linux 不可用：安装包里缺少 proot", false, false)
         if (!AlpineRootfs.isInstalled(ctx)) return ShellOutput(127, "内置 Linux（Alpine）还没安装：在 设置 › 智能体 › 终端与浏览器 里点「安装 Alpine」", false, false)
         val base = AlpineRootfs.base(ctx)
         val tmp = File(base, "tmp").apply { mkdirs() }

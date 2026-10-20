@@ -118,7 +118,7 @@ object SettingsText {
     const val TAGLINE = "本地大模型，对话不离开你的手机"
 
     /** First line of the version footer: "IRIDIS 1.8.0-full" (1.14.5 rename). */
-    fun versionLine(versionName: String) = "IRIDIS $versionName"
+    fun versionLine(versionName: String) = "OS-ETC-IRIDIS $versionName"
 
     /** The pages HOME links to, with their titles: the structure the 1.7.8 tests check. */
     val HOME_GROUPS: List<Pair<String, List<String>>> = listOf(
@@ -126,7 +126,7 @@ object SettingsText {
         "语音与服务" to listOf("语音", "API 服务"),
         "界面与外观" to listOf("外观"),
         "数据" to listOf("存储空间", "删除全部对话"),
-        "关于与调试" to listOf("资源诊断", "关于 IRIDIS"),
+        "关于与调试" to listOf("资源诊断", "关于 OS-ETC-IRIDIS"),
     )
 }
 
@@ -225,7 +225,7 @@ fun SettingsHome(vm: SettingsViewModel, onBack: () -> Unit, onOpen: (SettingsPag
                 // 2.0.x: the two diagnostic switches and the crash-log export live in 资源诊断 › 故障排查.
                 NavItem("资源诊断", SettingsText.DIAGNOSTICS, com.iris.localai.ui.icons.IrisIcons.Pulse) { onOpen(SettingsPage.DIAGNOSTICS) }
                 Divider()
-                NavItem("关于 IRIDIS", "版本 ${BuildConfig.VERSION_NAME}", com.iris.localai.ui.icons.IrisIcons.Info) { onOpen(SettingsPage.ABOUT) }
+                NavItem("关于 OS-ETC-IRIDIS", "版本 ${BuildConfig.VERSION_NAME}", com.iris.localai.ui.icons.IrisIcons.Info) { onOpen(SettingsPage.ABOUT) }
             }
             VersionFooter(SettingsText.versionLine(BuildConfig.VERSION_NAME), SettingsText.TAGLINE)
         }
@@ -558,7 +558,7 @@ fun AboutPage(onBack: () -> Unit) {
             }
             SectionTitle("许可证")
             SettingsGroup {
-                SettingsRow("本应用许可证 · Apache-2.0", subtitle = "IRIDIS 源码以 Apache License 2.0 开源")
+                SettingsRow("本应用许可证 · Apache-2.0", subtitle = "OS-ETC-IRIDIS 源码以 Apache License 2.0 开源")
                 Divider()
                 SettingsRow(
                     "许可证全文", subtitle = "查看各第三方组件的许可证原文",

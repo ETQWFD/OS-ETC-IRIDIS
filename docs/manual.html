@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OS-ETC-IRIDIS 使用手册</title>
+<meta name="description" content="OS-ETC-IRIDIS 使用手册：安装、模型、智能体、记忆、语音、局域网 API、常见问题与支持邮箱。">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Cpath fill='%235660F0' d='M13 10 L24 21 L35 10 L31 6 L24 13 L17 6 Z M13 24 L24 35 L35 24 L31 20 L24 27 L17 20 Z'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="https://miaoda.feishu.cn/fonts/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap">
+<style>
+  :root{
+    --bg:#F6F8FB; --surface:#FFFFFF; --ink:#101828; --ink-2:#475467; --ink-3:#667085;
+    --line:#E4E7EC; --brand:#5660F0; --brand-2:#18B4D2; --navy:#0E1626;
+    --code-bg:#0E1626; --warn:#FFF7ED; --warn-line:#FEDF89;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{font-family:"Noto Sans SC","PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif;background:var(--bg);color:var(--ink);line-height:1.75;-webkit-font-smoothing:antialiased}
+  a{color:var(--brand);text-decoration:none}
+  a:hover{text-decoration:underline}
+  /* 顶部 */
+  .top{position:sticky;top:0;z-index:60;background:rgba(246,248,251,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+  .top .in{max-width:1180px;margin:0 auto;padding:0 20px;display:flex;align-items:center;justify-content:space-between;height:56px}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:700;color:var(--ink)}
+  .brand svg{width:22px;height:22px}
+  .top a.back{font-size:14px;color:var(--ink-2)}
+  .layout{max-width:1180px;margin:0 auto;padding:24px 20px 80px;display:grid;grid-template-columns:230px 1fr;gap:36px}
+  /* 侧栏目录 */
+  .toc{position:sticky;top:76px;align-self:start;max-height:calc(100vh - 100px);overflow:auto;border-right:1px solid var(--line);padding-right:16px}
+  .toc h4{font-size:12px;letter-spacing:.1em;color:var(--ink-3);margin-bottom:10px}
+  .toc a{display:block;font-size:13px;color:var(--ink-2);padding:5px 8px;border-radius:6px;border-left:2px solid transparent}
+  .toc a:hover{color:var(--ink);background:var(--surface);text-decoration:none}
+  .toc a.on{color:var(--brand);border-left-color:var(--brand);font-weight:500}
+  @media(max-width:860px){
+    .layout{grid-template-columns:1fr;gap:0;padding-top:16px}
+    .toc{position:static;max-height:none;border-right:0;border-bottom:1px solid var(--line);padding:0 0 12px;margin-bottom:20px}
+    .toc a{display:inline-block;padding:5px 10px;border-left:0;border-radius:999px;margin:2px 2px;background:var(--surface);border:1px solid var(--line)}
+  }
+  /* 正文 */
+  main{min-width:0}
+  article h1{font-size:30px;font-weight:700;letter-spacing:-.01em;padding-bottom:14px;border-bottom:1px solid var(--line);margin-bottom:8px}
+  .lead{color:var(--ink-2);font-size:15px;margin-bottom:28px}
+  section{margin:40px 0}
+  section h2{font-size:21px;font-weight:700;display:flex;align-items:center;gap:10px;margin-bottom:14px;scroll-margin-top:84px}
+  section h2 .no{font-size:13px;color:var(--brand);font-weight:700;letter-spacing:.05em}
+  section h3{font-size:16px;font-weight:600;margin:20px 0 8px}
+  p{margin-bottom:10px;color:var(--ink-2);font-size:14px}
+  p strong, li strong{color:var(--ink)}
+  ul,ol{margin:0 0 12px 20px}
+  li{font-size:14px;color:var(--ink-2);margin-bottom:6px}
+  .card{border:1px solid var(--line);border-radius:12px;background:var(--surface);padding:18px 20px;margin-bottom:14px}
+  table{width:100%;border-collapse:collapse;margin:10px 0 16px;font-size:13px;background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{background:#EEF1F6;font-weight:600;color:var(--ink)}
+  tr:last-child td{border-bottom:0}
+  code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;background:#EEF1F6;border-radius:5px;padding:2px 6px;color:#3538CD}
+  pre{background:var(--code-bg);color:#D6E2FF;border-radius:10px;padding:14px 16px;overflow:auto;margin:10px 0 16px;font-size:12.5px;line-height:1.6}
+  pre code{background:none;color:inherit;padding:0}
+  .note{border-left:3px solid var(--brand);background:#EFF4FF;border-radius:0 10px 10px 0;padding:12px 16px;margin:12px 0;font-size:13.5px;color:var(--ink-2)}
+  .warn{border-left:3px solid #F79009;background:var(--warn);border-radius:0 10px 10px 0;padding:12px 16px;margin:12px 0;font-size:13.5px;color:#7A4B0E}
+  .email-box{border:1px solid var(--line);border-radius:12px;background:var(--surface);padding:22px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+  .email-box b{font-size:18px}
+  .email-box a{font-size:18px;font-weight:700;color:#fff;background:var(--brand);border-radius:10px;padding:10px 20px}
+  .email-box a:hover{text-decoration:none}
+  @media(max-width:720px){article h1{font-size:24px}section h2{font-size:18px}}
+</style>
+</head>
+<body>
+
+<div class="top">
+  <div class="in">
+    <a class="brand" href="index.html">
+      <svg viewBox="0 0 48 48" fill="none" aria-hidden="true"><path fill="#5660F0" d="M13 10 L24 21 L35 10 L31 6 L24 13 L17 6 Z M13 24 L24 35 L35 24 L31 20 L24 27 L17 20 Z M13 38 L24 49 L35 38 L31 34 L24 41 L17 34 Z" transform="translate(0,-4)"/></svg>
+      OS-ETC-IRIDIS
+    </a>
+    <a class="back" href="index.html">← 返回官网</a>
+  </div>
+</div>
+
+<div class="layout">
+  <nav class="toc" id="toc" aria-label="目录">
+    <h4>目录</h4>
+    <a href="#about">1 关于本手册</a>
+    <a href="#req">2 系统要求</a>
+    <a href="#install">3 安装与升级</a>
+    <a href="#models">4 模型管理</a>
+    <a href="#chat">5 对话与推理</a>
+    <a href="#agent">6 智能体与终端</a>
+    <a href="#memory">7 记忆与知识库</a>
+    <a href="#voice">8 本地语音</a>
+    <a href="#api">9 局域网 API</a>
+    <a href="#perf">10 性能与资源</a>
+    <a href="#faq">11 常见问题</a>
+    <a href="#support">12 支持与反馈</a>
+  </nav>
+
+  <main>
+    <article>
+      <h1>OS-ETC-IRIDIS 使用手册</h1>
+      <p class="lead">一站式安卓本地 AI 平台 · 离线运行 · 32 位 / 64 位手机都能用。本手册涵盖安装、模型、智能体、记忆、语音、局域网 API 与常见问题，内容以 v2.1.0-etc 实测行为为准。</p>
+
+      <section id="about">
+        <h2><span class="no">01</span> 关于本手册与项目</h2>
+        <p><strong>OS-ETC-IRIDIS</strong> 是开源项目 <a href="https://github.com/WWRJ3321/IRIDIS" target="_blank" rel="noopener">IRIDIS</a>（作者 WWRJ3321）的 <strong>ETC 分支</strong>：完整保留原作者的一切功能与版权，在此基础上由 ETQWFD 维护，新增 <strong>armeabi-v7a（32 位）支持</strong>，让 32 位 / 旧款 / 低配安卓手机也能正常安装运行（GGUF、MNN、语音、智能体终端均可用）。</p>
+        <p>推理、语音、记忆全部在手机本地完成，数据不出手机；只有下载模型 / 语音包 / 运行库、智能体主动联网、或你手动开启局域网 API 时才联网。</p>
+        <div class="note">有任何问题，请发送这个邮箱给开发者：<strong>2416444244@qq.com</strong>。反馈时请附上机型、安卓版本、APK 版本号（设置 › 关于）与复现步骤。</div>
+      </section>
+
+      <section id="req">
+        <h2><span class="no">02</span> 系统要求</h2>
+        <table>
+          <tr><th style="width:30%">项目</th><th>要求</th></tr>
+          <tr><td>系统版本</td><td>Android 12（API 31）及以上</td></tr>
+          <tr><td>处理器</td><td>arm64-v8a（64 位）或 armeabi-v7a（32 位），两个版本都已内置</td></tr>
+          <tr><td>内存</td><td>2 GB 可运行 1B 级模型；4 GB 建议 4B 以下；4B 以上模型建议 12 GB</td></tr>
+          <tr><td>存储</td><td>模型体积即所需空间（例如 3.8 GB 的 Qwen 3 需要约 4 GB 空闲）</td></tr>
+          <tr><td>可选硬件</td><td>GPU（Adreno）加速 OpenCL；高通骁龙 8 系可启用 NPU（仅 64 位）</td></tr>
+        </table>
+        <p>32 位设备推荐使用 4B 以下模型以保持流畅；LiteRT-LM 引擎官方只提供 64 位库，32 位设备会自动隐藏该引擎，GGUF 与 MNN 不受影响。</p>
+      </section>
+
+      <section id="install">
+        <h2><span class="no">03</span> 安装与升级</h2>
+        <h3>首次安装</h3>
+        <ol>
+          <li>从 <a href="https://github.com/ETQWFD/OS-ETC-IRIDIS/releases/latest" target="_blank" rel="noopener">GitHub Releases</a> 下载 <strong>Lite 版</strong>或 <strong>Full 版</strong> APK（两者都支持 32 / 64 位）。</li>
+          <li>安装时允许「安装未知来源应用」的提示。</li>
+          <li>打开 App，在「模型管理」下载或导入模型后即可对话。</li>
+        </ol>
+        <h3>从旧版 IRIS LocalAI 升级</h3>
+        <div class="warn">2.1.0 起包名改为 <code>com.iridis</code>，与旧包（com.iris.localai 等）不同，<strong>不能直接覆盖安装</strong>，否则会提示安装失败。请先打开旧版「设置 › 存储 › 备份与恢复」导出备份，再安装新版并在「设置 › 存储空间 › 备份与恢复」导入。</div>
+        <h3>工作区位置</h3>
+        <p>工作区默认在公共目录 <code>/storage/emulated/0/Download/IRIDIS</code>（可在文件管理器直接看到）。授予「全部文件访问」后模型等大文件都放这里；未授予时使用应用专属目录 <code>Android/data/com.iridis/files/</code>，两个位置都会在应用内列出。</p>
+      </section>
+
+      <section id="models">
+        <h2><span class="no">04</span> 模型管理</h2>
+        <table>
+          <tr><th>引擎</th><th>格式</th><th>硬件</th><th>32 位</th></tr>
+          <tr><td>llama.cpp</td><td><code>.gguf</code></td><td>CPU / GPU（OpenCL）</td><td>支持</td></tr>
+          <tr><td>MNN-LLM</td><td>MNN 模型文件夹</td><td>CPU / GPU（OpenCL）</td><td>支持</td></tr>
+          <tr><td>LiteRT-LM</td><td><code>.litertlm</code></td><td>GPU / 高通 NPU</td><td>不支持（自动隐藏）</td></tr>
+        </table>
+        <ul>
+          <li><strong>下载模型</strong>：在「模型管理」的在线列表中选择并下载（需要网络）；下载进度可暂停。</li>
+          <li><strong>导入模型</strong>：把 GGUF 文件拷入 <code>Download/IRIDIS/models</code>（或应用专属目录），MNN 模型以文件夹形式放入同一目录，应用会自动扫描。</li>
+          <li><strong>移动与删除</strong>：在「模型管理」可将私有目录模型移动到公共目录（不合并同名文件）；删除前会二次确认。</li>
+          <li><strong>NPU</strong>：仅骁龙 8 系 64 位设备可用；首次使用需在应用内同意高通许可并下载 QNN 运行库（不随 APK 分发）。</li>
+        </ul>
+      </section>
+
+      <section id="chat">
+        <h2><span class="no">05</span> 对话与推理</h2>
+        <ul>
+          <li><strong>新建对话</strong>：列表页右上角新建；每个对话独立上下文。</li>
+          <li><strong>采样参数</strong>：在「设置 › 生成」调整 temperature / top_p / top_k / min_p / repeat_penalty 等；单条消息也可临时指定。</li>
+          <li><strong>思考模式</strong>：推理模型默认展示思考过程（<code>reasoning_content</code>），可在设置关闭。</li>
+          <li><strong>编辑与重新生成</strong>：长按或点击消息可编辑、可重新生成多个版本，历史版本可回退。</li>
+          <li><strong>继续生成</strong>：生成中断后可「继续」补写。</li>
+          <li><strong>性能调校</strong>：KV 缓存复用让后续轮次更快；空闲时按设置自动卸载模型释放内存；「设置 › 性能与资源」可切换资源档。</li>
+        </ul>
+        <div class="note">AI 输出可能出错，请勿用于医疗、法律、金融等重要决策。智能体可以执行命令与联网，只对信任的内容开启。</div>
+      </section>
+
+      <section id="agent">
+        <h2><span class="no">06</span> 智能体与终端</h2>
+        <p>在对话页开启「智能体」后，模型可以调用工具完成任务：</p>
+        <ul>
+          <li><strong>文件工具</strong>：在工作区内读写、移动、删除文件（沙箱限制在工作区内，路径经检查）。</li>
+          <li><strong>内置终端</strong>：<code>Linux 终端</code> 提供 proot + Alpine Linux 环境，32 位设备自动使用 armv7 根文件系统，64 位使用 aarch64；终端内改动可撤销。</li>
+          <li><strong>联网搜索</strong>：模型主动请求后经你确认才联网（默认不联网）。</li>
+          <li><strong>定时任务</strong>：可安排周期任务（如每天提醒），任务执行前会先征得确认。</li>
+          <li><strong>备份</strong>：设置 › 存储空间 › 备份与恢复，一键导出 / 导入工作区与配置。</li>
+        </ul>
+        <div class="warn">终端拥有工作区文件权限，请勿授予关键系统目录；只对信任的对话开启智能体。</div>
+      </section>
+
+      <section id="memory">
+        <h2><span class="no">07</span> 记忆与知识库</h2>
+        <ul>
+          <li><strong>长期记忆</strong>：对话中的要点自动沉淀为记忆，后续对话自动注入；可在设置查看与清理。</li>
+          <li><strong>知识库</strong>：把 <code>txt / md / html</code> 文档放入工作区 <code>knowledge</code> 目录，在「上下文与记忆」中重建索引后即可检索引用。</li>
+          <li><strong>上下文窗口</strong>：可调整最大上下文长度；超长对话会自动摘要压缩。</li>
+        </ul>
+      </section>
+
+      <section id="voice">
+        <h2><span class="no">08</span> 本地语音</h2>
+        <ul>
+          <li><strong>离线识别</strong>：首次使用按提示下载语音包（sherpa-onnx），之后完全离线识别。</li>
+          <li><strong>离线合成</strong>：朗读回复同样本地完成。</li>
+          <li><strong>免提对话</strong>：语音模式开口即可打断，说完自动识别发送。</li>
+          <li><strong>管理</strong>：语音包与引擎状态在「设置 › 语音」查看；删除语音包可释放空间。</li>
+        </ul>
+      </section>
+
+      <section id="api">
+        <h2><span class="no">09</span> 局域网 API</h2>
+        <p>在「设置 › API 服务」开启后，手机就是一个 OpenAI / Ollama 兼容的模型服务器，默认端口 <strong>8686</strong>：</p>
+        <ul>
+          <li>Base URL：<code>http://127.0.0.1:8686/v1</code>（本机）；开启「允许局域网访问」后显示局域网地址（如 <code>http://192.168.1.23:8686/v1</code>）。</li>
+          <li>OpenAI 兼容：<code>GET /v1/models</code>、<code>POST /v1/chat/completions</code>（支持流式 SSE）。</li>
+          <li>Ollama 兼容：<code>GET /api/tags</code>、<code>POST /api/chat</code>。</li>
+          <li>健康检查：<code>GET /health</code>（无需鉴权）。</li>
+          <li><strong>API Key</strong>：仅本机访问时可不设；开启局域网后强制使用（格式 <code>sk-iris-…</code>，可在页面重新生成）。带 <code>Origin</code> 头的浏览器 / 插件请求即使本机也必须带 Key，否则 403。</li>
+          <li>生成请求与应用内对话共用模型并排队，客户端断开会立即取消，不会占用。</li>
+        </ul>
+        <h3>curl 示例</h3>
+        <pre><code>curl http://127.0.0.1:8686/v1/chat/completions \
+  -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" \
+  -d '{"stream":true,"messages":[{"role":"user","content":"用一句话介绍你自己"}]}'</code></pre>
+        <h3>Python 示例</h3>
+        <pre><code>from openai import OpenAI
+client = OpenAI(base_url="http://192.168.1.23:8686/v1", api_key="sk-iris-...")
+for chunk in client.chat.completions.create(
+        model="default", stream=True,
+        messages=[{"role": "user", "content": "你好"}]):
+    print(chunk.choices[0].delta.content or "", end="")</code></pre>
+        <p>更完整的接口与错误码说明见仓库内 <a href="API.md">docs/API.md</a>。</p>
+      </section>
+
+      <section id="perf">
+        <h2><span class="no">10</span> 性能与资源</h2>
+        <ul>
+          <li><strong>资源档</strong>：「设置 › 性能与资源」按机型选择，低档优先省电。</li>
+          <li><strong>空闲卸载</strong>：对话空闲一段时间后自动释放模型内存。</li>
+          <li><strong>温度限速</strong>：机身发热时自动降频保护。</li>
+          <li><strong>32 位提示</strong>：armeabi-v7a 设备请用 4B 以下模型；同一模型在 64 位设备上速度更快。</li>
+        </ul>
+      </section>
+
+      <section id="faq">
+        <h2><span class="no">11</span> 常见问题</h2>
+        <div class="card">
+          <p><strong>Q：32 位手机能装吗？</strong></p>
+          <p>A：能。APK 同时内置 armeabi-v7a（32 位）与 arm64-v8a 原生库，32 位设备自动加载 32 位库；GGUF、MNN、语音、智能体终端均可正常使用。</p>
+          <p><strong>Q：为什么 Full 版里没有 LiteRT-LM？</strong></p>
+          <p>A：LiteRT-LM 官方只有 64 位库。32 位设备会自动隐藏该引擎；64 位设备默认启用（GPU / NPU 加速）。</p>
+          <p><strong>Q：模型放哪里？为什么 App 里不显示？</strong></p>
+          <p>A：模型放在 <code>Download/IRIDIS/models</code>（全部文件访问）或应用专属 <code>files/models</code>。若放错目录或格式不匹配（如 MNN 用了 .gguf），App 不会显示；请在「模型管理」查看实际扫描到的目录。</p>
+          <p><strong>Q：内存不足 / 很卡怎么办？</strong></p>
+          <p>A：换更小的模型（如 1B），或在「设置 › 性能与资源」调低资源档并开启空闲卸载；关闭并行对话。</p>
+          <p><strong>Q：NPU 用不了？</strong></p>
+          <p>A：NPU 仅骁龙 8 系 64 位设备支持，且需在应用内同意高通许可并下载 QNN 运行库。其他设备自动回退 GPU / CPU。</p>
+          <p><strong>Q：API 返回 403 / 401？</strong></p>
+          <p>A：来自浏览器 / 插件的请求必须带 API Key；局域网访问必须在设置中开启并配置 Key。本机 127.0.0.1 未开局域网时可不带 Key。</p>
+          <p><strong>Q：升级提示安装失败？</strong></p>
+          <p>A：2.1.0 起包名为 <code>com.iridis</code>，与旧版包名不同无法覆盖。先备份（设置 › 存储空间 › 备份与恢复），卸载旧版后安装新版再导入备份。</p>
+          <p><strong>Q：可以完全离线使用吗？</strong></p>
+          <p>A：可以。首次下载模型与语音包后，推理、语音、记忆全部离线；App 不会在后台静默联网。</p>
+        </div>
+      </section>
+
+      <section id="support">
+        <h2><span class="no">12</span> 支持与反馈</h2>
+        <p>使用中遇到任何问题，欢迎直接联系开发者：</p>
+        <div class="email-box">
+          <div>
+            <b>有问题，发邮件</b>
+            <p style="margin-top:4px">请附上机型、安卓版本、APK 版本号与复现步骤，我们尽快回复。</p>
+          </div>
+          <a href="mailto:2416444244@qq.com">2416444244@qq.com</a>
+        </div>
+        <p style="margin-top:14px">项目地址：<a href="https://github.com/ETQWFD/OS-ETC-IRIDIS" target="_blank" rel="noopener">github.com/ETQWFD/OS-ETC-IRIDIS</a> · 上游：<a href="https://github.com/WWRJ3321/IRIDIS" target="_blank" rel="noopener">github.com/WWRJ3321/IRIDIS</a>（WWRJ3321）</p>
+        <p>OS-ETC-IRIDIS © 2026 · Apache-2.0 · 保留原作者 WWRJ3321 的一切版权与致谢。</p>
+      </section>
+    </article>
+  </main>
+</div>
+
+<script>
+  var links = document.querySelectorAll('.toc a');
+  var map = [];
+  links.forEach(function (a) { map.push({ a: a, el: document.querySelector(a.getAttribute('href')) }); });
+  function onScroll() {
+    var y = window.scrollY + 110, cur = null;
+    map.forEach(function (m) { if (m.el && m.el.offsetTop <= y) cur = m; });
+    links.forEach(function (a) { a.classList.remove('on'); });
+    if (cur) cur.a.classList.add('on');
+  }
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+</script>
+</body>
+</html>
