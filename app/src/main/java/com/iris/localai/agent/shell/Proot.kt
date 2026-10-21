@@ -76,9 +76,14 @@ object AlpineRootfs {
     private val arch: String =
         if ((android.os.Build.SUPPORTED_ABIS.firstOrNull() ?: "").startsWith("arm64")) "aarch64" else "armv7"
 
-    // ETC fork: Tsinghua (北京清华) mirror for faster downloads in China.
-    val URL: String =
-        "https://mirrors.tuna.tsinghua.edu.cn/alpine/v3.24/releases/$arch/alpine-minirootfs-3.24.2-$arch.tar.gz"
+    // ETC fork v2.3.1: multiple mirrors (Tsinghua / Aliyun / USTC / official), tried in order.
+    val URLS: List<String> = listOf(
+        "https://mirrors.tuna.tsinghua.edu.cn/alpine/v3.24/releases/$arch/alpine-minirootfs-3.24.2-$arch.tar.gz",
+        "https://mirrors.aliyun.com/alpine/v3.24/releases/$arch/alpine-minirootfs-3.24.2-$arch.tar.gz",
+        "https://mirrors.ustc.edu.cn/alpine/v3.24/releases/$arch/alpine-minirootfs-3.24.2-$arch.tar.gz",
+        "https://dl-cdn.alpinelinux.org/alpine/v3.24/releases/$arch/alpine-minirootfs-3.24.2-$arch.tar.gz",
+    )
+    val URL: String get() = URLS.first()
 
     // aarch64: 9bf70a7f18ea44094cbb5f70c58f9af129c8214745743db0e68e5502cc2ce773 (4_028_030 bytes)
     // armv7:   5552f1ef2398cee46ef2cf733f8f1258f39a77ad065dfd47282fc0df9fe1976c (3_257_716 bytes)
@@ -146,22 +151,37 @@ object AlpineRootfs {
     fun uninstall(ctx: Context) { base(ctx).deleteRecursively(); _state.value = State.Idle }
 
     private fun download(to: File) {
-        val c = (java.net.URL(URL).openConnection() as java.net.HttpURLConnection).apply { connectTimeout = 20_000; readTimeout = 30_000 }
-        try {
-            if (c.responseCode != 200) throw java.io.IOException("下载失败：HTTP ${c.responseCode}")
-            val total = c.contentLengthLong.takeIf { it > 0 } ?: SIZE
-            c.inputStream.use { input ->
-                to.outputStream().use { out ->
-                    val b = ByteArray(64 * 1024); var done = 0L
-                    while (true) {
-                        val n = input.read(b); if (n < 0) break
-                        out.write(b, 0, n); done += n
-                        if (done > 64L * 1024 * 1024) throw java.io.IOException("文件过大")
-                        _state.value = State.Downloading(done, total)
-                    }
+        var lastErr: java.io.IOException? = null
+        for ((idx, url) in URLS.withIndex()) {
+            try {
+                _state.value = State.Downloading(0, SIZE)
+                val c = (java.net.URL(url).openConnection() as java.net.HttpURLConnection).apply {
+                    connectTimeout = 20_000; readTimeout = 30_000
+                    setRequestProperty("User-Agent", "OS-ETC-IRIDIS/2.3")
+                    instanceFollowRedirects = true
                 }
+                try {
+                    if (c.responseCode != 200) throw java.io.IOException("HTTP ${c.responseCode}（镜像 ${idx + 1}/${URLS.size}）")
+                    val total = c.contentLengthLong.takeIf { it > 0 } ?: SIZE
+                    c.inputStream.use { input ->
+                        to.outputStream().use { out ->
+                            val b = ByteArray(64 * 1024); var done = 0L
+                            while (true) {
+                                val n = input.read(b); if (n < 0) break
+                                out.write(b, 0, n); done += n
+                                if (done > 64L * 1024 * 1024) throw java.io.IOException("文件过大")
+                                _state.value = State.Downloading(done, total)
+                            }
+                        }
+                    }
+                } finally { c.disconnect() }
+                return // success
+            } catch (e: java.io.IOException) {
+                lastErr = e
+                to.delete()
             }
-        } finally { c.disconnect() }
+        }
+        throw lastErr ?: java.io.IOException("所有镜像均下载失败")
     }
 
     fun sha256(f: File): String {

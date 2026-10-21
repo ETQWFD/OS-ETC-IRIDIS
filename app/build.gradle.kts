@@ -34,12 +34,12 @@ android {
 
     defaultConfig {
         applicationId = "com.iridis"
-        // ETC fork v2.3.0: built-in Chinese Termux core (no external Termux needed) + expanded
-        // model catalog (18 recommended entries, small models first for 32-bit phones).
+        // ETC fork v2.3.1: fix download connectivity (multi-mirror for Termux core & Alpine) and
+        // 32-bit model load OOM (cap threads ≤4 & context ≤2048 on armeabi-v7a).
         minSdk = 21
         targetSdk = 36
-        versionCode = 183
-        versionName = "2.3.0-etc"
+        versionCode = 184
+        versionName = "2.3.1-etc"
 
         // ETC fork (OS-ETC-IRIDIS): ship both ABIs so the app runs on 32-bit (armeabi-v7a) and
         // 64-bit (arm64-v8a) phones. LiteRT-LM has no armeabi-v7a build, so the app excludes it

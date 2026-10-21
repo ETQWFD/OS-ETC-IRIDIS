@@ -112,8 +112,13 @@ class MnnEngine(private val context: Context) : InferenceEngine {
                 throw EngineException("MNN 模型文件夹不完整：需要 config.json 与 llm.mnn（请下载仓库里的全部文件）")
             }
             onProgress(0.05f)
-            val threads = config.threads.coerceIn(1, 8)
-            val ctx = config.contextLength.coerceIn(512, 32768)
+            // ETC fork v2.3.1: 32-bit devices have a 3GB user virtual address space (often
+            // ~1-2GB contiguous after Android carves it up). A 0.6B MNN model mmaps ~450MB;
+            // with 8 threads × 1MB stacks + KV cache + MNN work buffers it can OOM on old
+            // 32-bit phones. Cap threads and context on armeabi-v7a so the load succeeds.
+            val is32Bit = (android.os.Build.SUPPORTED_ABIS.firstOrNull() ?: "").startsWith("armeabi")
+            val threads = config.threads.coerceIn(1, if (is32Bit) 4 else 8)
+            val ctx = config.contextLength.coerceIn(512, if (is32Bit) 2048 else 32768)
             val cacheDir = File(context.cacheDir, "mnn/${model.fileName.hashCode().toUInt().toString(16)}").apply { mkdirs() }
 
             val useGpu = when (config.backend) {

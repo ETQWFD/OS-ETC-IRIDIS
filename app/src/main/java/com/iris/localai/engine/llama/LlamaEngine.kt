@@ -68,8 +68,12 @@ class LlamaEngine : InferenceEngine {
             if (config.backend == com.iris.localai.engine.Backend.NPU) throw EngineException("llama.cpp 不支持 NPU")
             val path = model.path.toByteArray(Charsets.UTF_8)
             val listener = LoadProgressListener { p -> onProgress(p); true }
+            // ETC fork v2.3.1: cap threads & context on 32-bit to avoid OOM (limited VA space).
+            val is32Bit = (android.os.Build.SUPPORTED_ABIS.firstOrNull() ?: "").startsWith("armeabi")
+            val safeThreads = config.threads.coerceIn(1, if (is32Bit) 4 else 16)
+            val safeCtx = config.contextLength.coerceIn(512, if (is32Bit) 2048 else 32768)
             val err = LlamaNative.nativeLoad(
-                h, path, config.contextLength, config.threads, config.batchSize.coerceIn(32, 2048),
+                h, path, safeCtx, safeThreads, config.batchSize.coerceIn(32, 2048),
                 config.flashAttention, if (gpu) GPU_ALL_LAYERS else 0,
                 if (config.flashAttention) config.kvCacheType.coerceIn(0, 2) else 0, config.useMmap, listener,
             )

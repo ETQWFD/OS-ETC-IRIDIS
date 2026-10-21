@@ -22,9 +22,15 @@ object TermuxCore {
     const val VERSION = "1.0.0"
     const val TAG = "v1.0.0"
 
-    /** ETC fork: hosted on our own GitHub Release so the link never dies. */
-    val URL: String =
-        "https://github.com/ETQWFD/OS-ETC-IRIDIS/releases/download/$TAG/os-etc-termux-core-arm-zh.tar.gz"
+    /** ETC fork v2.3.1: multiple mirrors so China users can always download. Tried in order. */
+    val URLS: List<String> = listOf(
+        "https://github.com/ETQWFD/OS-ETC-IRIDIS/releases/download/$TAG/os-etc-termux-core-arm-zh.tar.gz",
+        "https://ghproxy.net/https://github.com/ETQWFD/OS-ETC-IRIDIS/releases/download/$TAG/os-etc-termux-core-arm-zh.tar.gz",
+        "https://gh.api.99988866.xyz/https://github.com/ETQWFD/OS-ETC-IRIDIS/releases/download/$TAG/os-etc-termux-core-arm-zh.tar.gz",
+        "https://mirror.ghproxy.com/https://github.com/ETQWFD/OS-ETC-IRIDIS/releases/download/$TAG/os-etc-termux-core-arm-zh.tar.gz",
+    )
+    /** Kept for backward-compat / logging; URLS is what download() actually uses. */
+    val URL: String get() = URLS.first()
 
     const val SHA256 = "5b085943c6de39772709c786543cbe072e9ea0e7511421ea01f95b9d78ae2d43"
     val SIZE: Long = 28_264_265L
@@ -87,24 +93,38 @@ object TermuxCore {
     fun uninstall(ctx: Context) { base(ctx).deleteRecursively(); _state.value = State.Idle }
 
     private fun download(to: File) {
-        val c = (java.net.URL(URL).openConnection() as java.net.HttpURLConnection).apply {
-            connectTimeout = 20_000; readTimeout = 30_000
-        }
-        try {
-            if (c.responseCode != 200) throw java.io.IOException("下载失败：HTTP ${c.responseCode}")
-            val total = c.contentLengthLong.takeIf { it > 0 } ?: SIZE
-            c.inputStream.use { input ->
-                to.outputStream().use { out ->
-                    val b = ByteArray(64 * 1024); var done = 0L
-                    while (true) {
-                        val n = input.read(b); if (n < 0) break
-                        out.write(b, 0, n); done += n
-                        if (done > 256L * 1024 * 1024) throw java.io.IOException("文件过大")
-                        _state.value = State.Downloading(done, total)
-                    }
+        var lastErr: java.io.IOException? = null
+        for ((idx, url) in URLS.withIndex()) {
+            try {
+                _state.value = State.Downloading(0, SIZE)
+                val c = (java.net.URL(url).openConnection() as java.net.HttpURLConnection).apply {
+                    connectTimeout = 25_000; readTimeout = 45_000
+                    setRequestProperty("User-Agent", "OS-ETC-IRIDIS/2.3")
+                    instanceFollowRedirects = true
                 }
+                try {
+                    if (c.responseCode != 200) throw java.io.IOException("HTTP ${c.responseCode}（镜像 ${idx + 1}/${URLS.size}）")
+                    val total = c.contentLengthLong.takeIf { it > 0 } ?: SIZE
+                    c.inputStream.use { input ->
+                        to.outputStream().use { out ->
+                            val b = ByteArray(64 * 1024); var done = 0L
+                            while (true) {
+                                val n = input.read(b); if (n < 0) break
+                                out.write(b, 0, n); done += n
+                                if (done > 256L * 1024 * 1024) throw java.io.IOException("文件过大")
+                                _state.value = State.Downloading(done, total)
+                            }
+                        }
+                    }
+                } finally { c.disconnect() }
+                return // success
+            } catch (e: java.io.IOException) {
+                lastErr = e
+                to.delete()
+                // try next mirror
             }
-        } finally { c.disconnect() }
+        }
+        throw lastErr ?: java.io.IOException("所有镜像均下载失败")
     }
 
     fun sha256(f: File): String {
