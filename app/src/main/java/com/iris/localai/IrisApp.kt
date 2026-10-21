@@ -42,6 +42,10 @@ class IrisApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        // ETC fork (OS-ETC-IRIDIS): load the API-compat shim FIRST so that third-party
+        // native libraries (sherpa-onnx, llama.cpp) resolve ftello/fseeko/posix_fadvise
+        // etc. against it instead of failing on old Android (minSdk 21) / 32-bit devices.
+        runCatching { System.loadLibrary("android_compat") }
         com.iris.localai.util.CrashReporter.install(this)
         // ggml's OpenCL backend caches compiled Adreno kernels here, so only the first GPU load compiles.
         runCatching {

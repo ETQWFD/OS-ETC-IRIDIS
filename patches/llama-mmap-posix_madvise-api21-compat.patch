@@ -1,26 +1,31 @@
-diff --git a/src/llama-mmap.cpp b/src/llama-mmap.cpp
-index 045489d..4b124b3 100644
 --- a/src/llama-mmap.cpp
 +++ b/src/llama-mmap.cpp
-@@ -25,6 +25,21 @@
-     #endif
+@@ -64,8 +64,14 @@
+ #ifdef _WIN32
+ #    define llama_mmap_ftell _ftelli64
+ #    define llama_mmap_fseek _fseeki64
++#elif defined(__ANDROID__)
++// ETC fork: ftello()/fseeko() are Android API 24+; on older devices (minSdk 21)
++// fall back to ftell()/fseek() — file positions here are metadata offsets, well
++// within 32-bit range even for multi-GB models.
++#    define llama_mmap_ftell ftell
++#    define llama_mmap_fseek fseek
+ #else
+ #    define llama_mmap_ftell ftello
+ #    define llama_mmap_fseek fseeko
  #endif
- 
-+// ETC fork: posix_madvise() and POSIX_MADV_* constants are Android API 23+;
-+// madvise() and MADV_* are available at all API levels. On older Android
-+// (minSdk 21) fall back — same advice values, only return-value convention
-+// differs (we only check nonzero anyway).
-+#if defined(__ANDROID__) && __ANDROID_API__ < 23
-+#define posix_madvise(addr, len, advice) madvise(addr, len, advice)
-+#ifndef POSIX_MADV_NORMAL
-+#define POSIX_MADV_NORMAL     MADV_NORMAL
-+#define POSIX_MADV_RANDOM     MADV_RANDOM
-+#define POSIX_MADV_SEQUENTIAL MADV_SEQUENTIAL
-+#define POSIX_MADV_WILLNEED   MADV_WILLNEED
-+#define POSIX_MADV_DONTNEED   MADV_DONTNEED
-+#endif
-+#endif
-+
- #if defined(_WIN32)
-     #define WIN32_LEAN_AND_MEAN
-     #ifndef NOMINMAX
+--- a/ggml/src/gguf.cpp
++++ b/ggml/src/gguf.cpp
+@@ -23,8 +23,14 @@
+ #ifdef _WIN32
+ #    define gguf_ftell _ftelli64
+ #    define gguf_fseek _fseeki64
++#elif defined(__ANDROID__)
++// ETC fork: ftello()/fseeko() are Android API 24+; fall back to ftell()/fseek()
++// on minSdk 21. GGUF metadata offsets fit in 32-bit even for multi-GB models.
++#    define gguf_ftell ftell
++#    define gguf_fseek fseek
+ #else
+ #    define gguf_ftell ftello
+ #    define gguf_fseek fseeko
+ #endif

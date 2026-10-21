@@ -71,7 +71,8 @@ add_subdirectory(${LLAMA_DIR} llama.cpp EXCLUDE_FROM_ALL)
 
 add_library(iris_llama SHARED
         iris_engine.cpp
-        jni_bridge.cpp)
+        jni_bridge.cpp
+        android_compat.c)
 
 target_compile_features(iris_llama PRIVATE cxx_std_17)
 target_compile_options(iris_llama PRIVATE -Wall -Wextra -O3 -fvisibility=hidden)
@@ -103,7 +104,7 @@ if (IRIS_MNN)
     if (NOT EXISTS "${IRIS_MNN_DIR}/lib/${ANDROID_ABI}/libMNN.a")
         message(FATAL_ERROR "MNN not found at ${IRIS_MNN_DIR}. Run: sh scripts/build-mnn-android.sh")
     endif ()
-    add_library(iris_mnn SHARED mnn/mnn_engine.cpp mnn/mnn_jni.cpp mnn/pthread_compat.c)
+    add_library(iris_mnn SHARED mnn/mnn_engine.cpp mnn/mnn_jni.cpp mnn/pthread_compat.c android_compat.c)
     target_compile_features(iris_mnn PRIVATE cxx_std_17)
     target_compile_options(iris_mnn PRIVATE -O2 -fvisibility=hidden -Wall)
     target_include_directories(iris_mnn PRIVATE ${IRIS_MNN_DIR}/include)
@@ -113,3 +114,11 @@ if (IRIS_MNN)
     target_link_options(iris_mnn PRIVATE
             -Wl,--gc-sections -Wl,--icf=safe -Wl,--exclude-libs,ALL -Wl,-z,max-page-size=16384)
 endif ()
+
+# ---- ETC fork: API-level compatibility shims (32-bit / old Android) ----
+# Provides ftello/fseeko (API 24+), posix_fadvise/posix_madvise (API 23+) as
+# weak symbols so third-party libraries (sherpa-onnx, llama.cpp) load on
+# minSdk 21 devices. Loaded FIRST in IrisApp.onCreate().
+add_library(android_compat SHARED android_compat.c)
+target_compile_options(android_compat PRIVATE -O2 -fvisibility=default)
+target_link_libraries(android_compat PRIVATE log)

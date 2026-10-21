@@ -97,7 +97,7 @@
   <main>
     <article>
       <h1>OS-ETC-IRIDIS 使用手册</h1>
-      <p class="lead">一站式安卓本地 AI 平台 · 离线运行 · 32 位 / 64 位手机都能用。本手册涵盖安装、模型、智能体、记忆、语音、局域网 API 与常见问题，内容以 v2.1.0-etc 实测行为为准。</p>
+      <p class="lead">一站式安卓本地 AI 平台 · 离线运行 · 32 位 / 64 位手机都能用。本手册涵盖安装、模型、智能体、记忆、语音、局域网 API 与常见问题，内容以 v2.2.0-etc 实测行为为准。</p>
 
       <section id="about">
         <h2><span class="no">01</span> 关于本手册与项目</h2>
@@ -110,8 +110,8 @@
         <h2><span class="no">02</span> 系统要求</h2>
         <table>
           <tr><th style="width:30%">项目</th><th>要求</th></tr>
-          <tr><td>系统版本</td><td>Lite 版：Android 5（API 21）及以上；Full 版：Android 7（API 24）及以上；最高兼容 Android 16（API 36）</td></tr>
-          <tr><td>处理器</td><td>arm64-v8a（64 位）或 armeabi-v7a（32 位），两个版本都已内置</td></tr>
+          <tr><td>系统版本</td><td>Android 5（API 21）及以上，最高兼容 Android 16（API 36）；单一安装包自动适配 32 位 / 64 位</td></tr>
+          <tr><td>处理器</td><td>arm64-v8a（64 位）或 armeabi-v7a（32 位），单包已内置双架构</td></tr>
           <tr><td>内存</td><td>2 GB 可运行 1B 级模型；4 GB 建议 4B 以下；4B 以上模型建议 12 GB</td></tr>
           <tr><td>存储</td><td>模型体积即所需空间（例如 3.8 GB 的 Qwen 3 需要约 4 GB 空闲）</td></tr>
           <tr><td>可选硬件</td><td>GPU（Adreno）加速 OpenCL；高通骁龙 8 系可启用 NPU（仅 64 位）</td></tr>
@@ -123,7 +123,7 @@
         <h2><span class="no">03</span> 安装与升级</h2>
         <h3>首次安装</h3>
         <ol>
-          <li>从 <a href="https://github.com/ETQWFD/OS-ETC-IRIDIS/releases/latest" target="_blank" rel="noopener">GitHub Releases</a> 下载 <strong>Lite 版</strong>或 <strong>Full 版</strong> APK（两者都支持 32 / 64 位）。</li>
+          <li>从 <a href="https://github.com/ETQWFD/OS-ETC-IRIDIS/releases/latest" target="_blank" rel="noopener">GitHub Releases</a> 下载 <strong>OS-ETC-IRIDIS APK</strong>（单一安装包，同时支持 32 / 64 位，约 40 MB）。</li>
           <li>安装时允许「安装未知来源应用」的提示。</li>
           <li>打开 App，在「模型管理」下载或导入模型后即可对话。</li>
         </ol>
@@ -167,7 +167,8 @@
         <p>在对话页开启「智能体」后，模型可以调用工具完成任务：</p>
         <ul>
           <li><strong>文件工具</strong>：在工作区内读写、移动、删除文件（沙箱限制在工作区内，路径经检查）。</li>
-          <li><strong>内置终端</strong>：<code>Linux 终端</code> 提供 proot + Alpine Linux 环境，32 位设备自动使用 armv7 根文件系统，64 位使用 aarch64；终端内改动可撤销。</li>
+          <li><strong>内置终端</strong>：<code>Linux 终端</code> 提供 proot + Alpine Linux 环境，32 位设备自动使用 armv7 根文件系统，64 位使用 aarch64；终端内改动可撤销。Alpine 根文件系统与 QNN 运行库默认从北京清华镜像源下载，国内速度更快。</li>
+          <li><strong>外部终端（可选）</strong>：可对接 Termux 获得完整 Linux 环境。<strong>32 位手机请安装 ZoneTermux32</strong>（Termux 官方已停止 32 位支持，ZoneTermux32 是持续维护的 32 位分支），64 位手机可使用官方 Termux。安装后在 Termux 中运行 <code>termux-setup-storage</code> 并允许外部应用调用即可。</li>
           <li><strong>联网搜索</strong>：模型主动请求后经你确认才联网（默认不联网）。</li>
           <li><strong>定时任务</strong>：可安排周期任务（如每天提醒），任务执行前会先征得确认。</li>
           <li><strong>备份</strong>：设置 › 存储空间 › 备份与恢复，一键导出 / 导入工作区与配置。</li>
@@ -234,8 +235,8 @@ for chunk in client.chat.completions.create(
         <div class="card">
           <p><strong>Q：32 位手机能装吗？</strong></p>
           <p>A：能。APK 同时内置 armeabi-v7a（32 位）与 arm64-v8a 原生库，32 位设备自动加载 32 位库；GGUF、MNN、语音、智能体终端均可正常使用。</p>
-          <p><strong>Q：为什么 Full 版里没有 LiteRT-LM？</strong></p>
-          <p>A：LiteRT-LM 官方只有 64 位库。32 位设备会自动隐藏该引擎；64 位设备默认启用（GPU / NPU 加速）。</p>
+          <p><strong>Q：为什么我的设备里没有 LiteRT-LM 引擎？</strong></p>
+          <p>A：LiteRT-LM 官方只有 64 位库且要求 Android 7（API 24）以上。32 位设备或 Android 5/6 会自动隐藏该引擎，GGUF 与 MNN 不受影响，功能完整可用。</p>
           <p><strong>Q：模型放哪里？为什么 App 里不显示？</strong></p>
           <p>A：模型放在 <code>Download/IRIDIS/models</code>（全部文件访问）或应用专属 <code>files/models</code>。若放错目录或格式不匹配（如 MNN 用了 .gguf），App 不会显示；请在「模型管理」查看实际扫描到的目录。</p>
           <p><strong>Q：内存不足 / 很卡怎么办？</strong></p>

@@ -30,3 +30,15 @@ __attribute__((weak)) void *__tls_get_addr(void *index) {
     return 0;
 }
 #endif
+
+/*
+ * __write_chk() — FORTIFY_SOURCE wrapper emitted by newer NDK compilers. MNN's
+ * static lib references it but API 21 libc does not export it. Forward to write().
+ */
+#if defined(__ANDROID__) && __ANDROID_API__ < 24
+#include <unistd.h>
+ssize_t __write_chk(int fd, const void *buf, size_t count, size_t buf_size) {
+    (void)buf_size;
+    return write(fd, buf, count);
+}
+#endif

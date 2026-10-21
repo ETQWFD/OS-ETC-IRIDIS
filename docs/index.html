@@ -202,31 +202,22 @@
     <div class="sec-head">
       <div class="k">DOWNLOAD</div>
       <h2>下载安装</h2>
-      <p>两个版本都支持 32 位（armeabi-v7a）与 64 位（arm64-v8a）手机，按需选择。</p>
+      <p>单一安装包，同时支持 32 位（armeabi-v7a）与 64 位（arm64-v8a）手机，自动适配。</p>
     </div>
-    <div class="dl-grid">
+    <div class="dl-grid" style="grid-template-columns:1fr">
       <div class="dl">
-        <h3>Lite 版 <span class="badge badge-lite">轻量 · 推荐</span></h3>
-        <p>GGUF 推理 + 本地语音 + 智能体 + 局域网 API，体积更小，日常够用。</p>
+        <h3>OS-ETC-IRIDIS v2.2.0 <span class="badge badge-full">完整版 · 单包</span></h3>
+        <p>GGUF + MNN + LiteRT-LM 三引擎合一，本地语音 + 智能体 + 局域网 API，32 位与 64 位手机通用。</p>
         <ul>
-          <li>llama.cpp 引擎（GGUF 模型）</li>
-          <li>32 位 / 64 位全功能可用</li>
-          <li>安装包更小，低配机流畅</li>
+          <li>llama.cpp（GGUF）+ MNN 引擎：32 位 / 64 位全功能可用</li>
+          <li>LiteRT-LM + NPU：64 位设备自动启用，32 位 / 旧系统自动降级</li>
+          <li>支持 Android 5（API 21）至 Android 16（API 36）</li>
+          <li>32 位终端自动适配 ZoneTermux32，下载源默认清华镜像</li>
         </ul>
-        <a class="btn btn-primary" href="https://github.com/ETQWFD/OS-ETC-IRIDIS/releases/latest" target="_blank" rel="noopener">下载 Lite APK</a>
-      </div>
-      <div class="dl">
-        <h3>Full 版 <span class="badge badge-full">全部引擎</span></h3>
-        <p>在 Lite 基础上增加 MNN 与 LiteRT-LM 引擎，支持更多模型格式与 NPU。</p>
-        <ul>
-          <li>GGUF + MNN（32/64 位均可）</li>
-          <li>LiteRT-LM + NPU（仅 64 位设备）</li>
-          <li>安装包更大，功能最全</li>
-        </ul>
-        <a class="btn btn-primary" href="https://github.com/ETQWFD/OS-ETC-IRIDIS/releases/latest" target="_blank" rel="noopener">下载 Full APK</a>
+        <a class="btn btn-primary" href="https://github.com/ETQWFD/OS-ETC-IRIDIS/releases/latest" target="_blank" rel="noopener">下载 APK（约 40 MB）</a>
       </div>
     </div>
-    <p class="req">系统要求：Lite 版支持 Android 5（API 21）及以上，Full 版支持 Android 7（API 24）及以上（含 LiteRT-LM NPU 引擎）；最高兼容 Android 16。32 位设备建议使用 4B 以下模型，64 位设备 4B 以上建议 12 GB 内存。APK 同时可从 GitHub Releases 获取。</p>
+    <p class="req">系统要求：Android 5（API 21）及以上，最高兼容 Android 16。32 位设备建议使用 4B 以下模型，64 位设备 4B 以上建议 12 GB 内存。APK 同时可从 GitHub Releases 获取。</p>
   </div>
 </section>
 

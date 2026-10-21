@@ -169,9 +169,11 @@ class QualcommNpuRuntime private constructor(context: Context) : NpuSupport {
         private const val DISPATCH_ASSET = "npu/libLiteRtDispatch_Qualcomm.so"
         private const val MARKER = ".installed"
         private const val QNN_AAR_BYTES = 71_270_746L
+        // ETC fork: Tsinghua (北京清华) mirror first for faster downloads in China.
         private val QNN_URLS = listOf(
-            "https://repo1.maven.org/maven2/com/qualcomm/qti/qnn-runtime/$QNN_VERSION/qnn-runtime-$QNN_VERSION.aar",
+            "https://mirrors.tuna.tsinghua.edu.cn/maven/com/qualcomm/qti/qnn-runtime/$QNN_VERSION/qnn-runtime-$QNN_VERSION.aar",
             "https://maven.aliyun.com/repository/central/com/qualcomm/qti/qnn-runtime/$QNN_VERSION/qnn-runtime-$QNN_VERSION.aar",
+            "https://repo1.maven.org/maven2/com/qualcomm/qti/qnn-runtime/$QNN_VERSION/qnn-runtime-$QNN_VERSION.aar",
         )
 
         /** Hexagon HTP architecture for Snapdragon SoCs LiteRT ships a dispatch library for (see [NpuIds.hexagonArch]). */

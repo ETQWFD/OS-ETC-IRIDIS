@@ -2,6 +2,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- ETC fork: LiteRT-LM AAR declares minSdk 24; we ship minSdk 21 and gate it at runtime
+         (32-bit / API < 24 devices fall back to GGUF + MNN). Override the merger check. -->
+    <uses-sdk tools:overrideLibrary="com.google.ai.edge.litertlm" />
+
     <!-- Network: only for user-initiated model downloads and the opt-in local API server. -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
@@ -62,6 +66,11 @@
         <!-- Vendor OpenCL driver (Adreno). Optional: loaded with dlopen, CPU is used when absent. -->
         <uses-native-library android:name="libOpenCL.so" android:required="false" />
         <uses-native-library android:name="libOpenCL_adreno.so" android:required="false" />
+        <!-- LiteRT-LM GPU backend (OpenCL on Adreno / Mali). Optional so CPU-only devices still install. -->
+        <uses-native-library android:name="libvndksupport.so" android:required="false" />
+        <!-- Hexagon DSP RPC: without this the app's linker namespace can't open the vendor
+             FastRPC library, QNN HTP gets no DSP session and prefill fails "Failed to allocate tensors". -->
+        <uses-native-library android:name="libcdsprpc.so" android:required="false" />
 
         <activity
             android:name=".ui.MainActivity"

@@ -37,19 +37,47 @@ object TermuxBridge {
     const val BASH = "/data/data/com.termux/files/usr/bin/bash"
     const val HOME = "/data/data/com.termux/files/home"
     const val DOWNLOAD_URL = "https://github.com/termux/termux-app/releases/latest"
+    /** ETC fork: ZoneTermux32 — Termux fork with active 32-bit (armeabi-v7a) builds.
+     *  Termux official stopped 32-bit support in 2023; ZoneTermux32 is the recommended
+     *  terminal backend on 32-bit phones. */
+    const val ZONA_PACKAGE = "com.zonetermux"
+    const val ZONA_PERMISSION = "com.zonetermux.permission.RUN_COMMAND"
+    const val ZONA_BASH = "/data/data/com.zonetermux/files/usr/bin/bash"
+    const val ZONA_HOME = "/data/data/com.zonetermux/files/home"
+    const val ZONA_DOWNLOAD_URL = "https://github.com/ZoneTermux/ZoneTermux/releases/latest"
     /** The one line the user runs in Termux once so other apps may send it commands. */
     const val SETUP = "mkdir -p ~/.termux && echo \"allow-external-apps=true\" >> ~/.termux/termux.properties && termux-setup-storage"
 
-    fun isInstalled(ctx: Context): Boolean =
-        runCatching { ctx.packageManager.getPackageInfo(PACKAGE, 0); true }.getOrDefault(false)
+    /** ETC fork: true on 32-bit ARM devices (armeabi-v7a), where ZoneTermux32 is preferred. */
+    private val is32Bit: Boolean =
+        !(android.os.Build.SUPPORTED_ABIS.firstOrNull() ?: "").startsWith("arm64") &&
+        !(android.os.Build.SUPPORTED_ABIS.firstOrNull() ?: "").startsWith("x86_64")
+
+    private fun packageInstalled(ctx: Context, pkg: String): Boolean =
+        runCatching { ctx.packageManager.getPackageInfo(pkg, 0); true }.getOrDefault(false)
+
+    /** Resolved backend package: ZoneTermux32 on 32-bit if installed, else Termux. */
+    fun activePackage(ctx: Context): String =
+        if (is32Bit && packageInstalled(ctx, ZONA_PACKAGE)) ZONA_PACKAGE else PACKAGE
+    fun activePermission(ctx: Context): String =
+        if (activePackage(ctx) == ZONA_PACKAGE) ZONA_PERMISSION else PERMISSION
+    fun activeBash(ctx: Context): String =
+        if (activePackage(ctx) == ZONA_PACKAGE) ZONA_BASH else BASH
+    fun activeHome(ctx: Context): String =
+        if (activePackage(ctx) == ZONA_PACKAGE) ZONA_HOME else HOME
+    val activeDownloadUrl: String get() = if (is32Bit) ZONA_DOWNLOAD_URL else DOWNLOAD_URL
+    fun activeLabel(ctx: Context): String =
+        if (activePackage(ctx) == ZONA_PACKAGE) "ZoneTermux32" else "Termux"
+
+    fun isInstalled(ctx: Context): Boolean = packageInstalled(ctx, activePackage(ctx))
 
     fun hasPermission(ctx: Context): Boolean =
-        ctx.checkSelfPermission(PERMISSION) == PackageManager.PERMISSION_GRANTED
+        ctx.checkSelfPermission(activePermission(ctx)) == PackageManager.PERMISSION_GRANTED
 
     /** Status line for the settings / terminal page; null = ready. */
     fun problem(ctx: Context): String? = when {
-        !isInstalled(ctx) -> "未安装 Termux"
-        !hasPermission(ctx) -> "未授权 IRIDIS 向 Termux 发送命令"
+        !isInstalled(ctx) -> "未安装${activeLabel(ctx)}" + (if (is32Bit) "（32位手机请装 ZoneTermux32）" else "")
+        !hasPermission(ctx) -> "未授权 IRIDIS 向 ${activeLabel(ctx)} 发送命令"
         else -> null
     }
 }
@@ -63,7 +91,8 @@ class TermuxShell(context: Context) : ShellRunner {
     private val ids = AtomicInteger(1)
 
     override fun run(command: String, cwd: File, timeoutMs: Long, maxBytes: Int): ShellOutput {
-        TermuxBridge.problem(ctx)?.let { return ShellOutput(-1, "Termux: $it", false, false) }
+        TermuxBridge.problem(ctx)?.let { return ShellOutput(-1, "${TermuxBridge.activeLabel(ctx)}: $it", false, false) }
+        val pkg = TermuxBridge.activePackage(ctx)
         val id = ids.getAndIncrement()
         val action = "${ctx.packageName}.TERMUX_RESULT.$id"
         val latch = CountDownLatch(1)
@@ -82,19 +111,19 @@ class TermuxShell(context: Context) : ShellRunner {
                 ctx, id, Intent(action).setPackage(ctx.packageName),
                 PendingIntent.FLAG_ONE_SHOT or PendingIntent.FLAG_MUTABLE,
             )
-            val workdir = if (cwd.path.startsWith("/storage/") || cwd.path.startsWith("/sdcard")) cwd.path else TermuxBridge.HOME
-            val intent = Intent("com.termux.RUN_COMMAND")
-                .setClassName(TermuxBridge.PACKAGE, "com.termux.app.RunCommandService")
-                .putExtra("com.termux.RUN_COMMAND_PATH", TermuxBridge.BASH)
-                .putExtra("com.termux.RUN_COMMAND_ARGUMENTS", arrayOf("-lc", command))
-                .putExtra("com.termux.RUN_COMMAND_WORKDIR", workdir)
-                .putExtra("com.termux.RUN_COMMAND_BACKGROUND", true)
-                .putExtra("com.termux.RUN_COMMAND_PENDING_INTENT", pi)
+            val workdir = if (cwd.path.startsWith("/storage/") || cwd.path.startsWith("/sdcard")) cwd.path else TermuxBridge.activeHome(ctx)
+            val intent = Intent("$pkg.RUN_COMMAND")
+                .setClassName(pkg, "$pkg.app.RunCommandService")
+                .putExtra("$pkg.RUN_COMMAND_PATH", TermuxBridge.activeBash(ctx))
+                .putExtra("$pkg.RUN_COMMAND_ARGUMENTS", arrayOf("-lc", command))
+                .putExtra("$pkg.RUN_COMMAND_WORKDIR", workdir)
+                .putExtra("$pkg.RUN_COMMAND_BACKGROUND", true)
+                .putExtra("$pkg.RUN_COMMAND_PENDING_INTENT", pi)
             runCatching { ctx.startService(intent) }.onFailure {
-                return ShellOutput(-1, "Termux: 无法启动（${it.message}）。请先打开一次 Termux 并运行：${TermuxBridge.SETUP}", false, false)
+                return ShellOutput(-1, "${TermuxBridge.activeLabel(ctx)}: 无法启动（${it.message}）。请先打开一次 ${TermuxBridge.activeLabel(ctx)} 并运行：${TermuxBridge.SETUP}", false, false)
             }
             if (!latch.await(timeoutMs, TimeUnit.MILLISECONDS)) return ShellOutput(-1, "", true, false)
-            val b = result.get() ?: return ShellOutput(-1, "Termux: 没有返回结果", false, false)
+            val b = result.get() ?: return ShellOutput(-1, "${TermuxBridge.activeLabel(ctx)}: 没有返回结果", false, false)
             val err = b.getInt("err", -1)
             val errmsg = b.getString("errmsg").orEmpty()
             val text = TermuxResult.merge(b.getString("stdout"), b.getString("stderr"), if (err > 0 && errmsg.isNotBlank()) errmsg else null)

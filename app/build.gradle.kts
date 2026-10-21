@@ -34,16 +34,17 @@ android {
 
     defaultConfig {
         applicationId = "com.iridis"
-        // ETC fork v2.1.1: minSdk lowered to 21 (Android 5) so older phones can install;
-        // targetSdk/compileSdk 36 (Android 16). High-version APIs are runtime-guarded.
+        // ETC fork v2.2.0: unified single build (merged lite+full). minSdk 21 (Android 5)
+        // so older phones can install; targetSdk/compileSdk 36 (Android 16). High-version
+        // APIs are runtime-guarded; LiteRT-LM (API 24+) is excluded at runtime on older devices.
         minSdk = 21
         targetSdk = 36
-        versionCode = 180
-        versionName = "2.1.2-etc"
+        versionCode = 181
+        versionName = "2.2.0-etc"
 
         // ETC fork (OS-ETC-IRIDIS): ship both ABIs so the app runs on 32-bit (armeabi-v7a) and
         // 64-bit (arm64-v8a) phones. LiteRT-LM has no armeabi-v7a build, so the app excludes it
-        // at runtime on 32-bit devices (see full EngineFactory / BackendEnvironment).
+        // at runtime on 32-bit devices (see EngineFactory / BackendEnvironment).
         ndk { abiFilters += listOf("armeabi-v7a", "arm64-v8a") }
         externalNativeBuild {
             cmake {
@@ -52,9 +53,13 @@ android {
                     "-DCMAKE_BUILD_TYPE=Release",
                     "-DIRIS_KLEIDIAI=${(project.findProperty("iris.kleidiai") ?: "ON")}",
                     "-DIRIS_LTO=${(project.findProperty("iris.lto") ?: "ON")}",
+                    // ETC fork: MNN-LLM engine is now part of the unified build.
+                    "-DIRIS_MNN=ON",
                 )
             }
         }
+        // ETC fork: unified build always includes LiteRT-LM + MNN (runtime-gated).
+        buildConfigField("boolean", "HAS_LITERT", "true")
     }
 
     externalNativeBuild {
@@ -63,25 +68,9 @@ android {
         }
     }
 
-    // lite (default): GGUF only — the small build.  full: adds Google LiteRT-LM 0.18 (+22 MB native).
-    flavorDimensions += "engines"
-    productFlavors {
-        create("lite") {
-            dimension = "engines"
-            isDefault = true
-            buildConfigField("boolean", "HAS_LITERT", "false")
-        }
-        create("full") {
-            dimension = "engines"
-            versionNameSuffix = "-full"
-            // LiteRT-LM (Google AI Edge) requires API 24+; full flavor ships it so its
-            // minSdk is 24, while the lite flavor stays at 21 (Android 5).
-            minSdk = 24
-            buildConfigField("boolean", "HAS_LITERT", "true")
-            // Third engine: MNN-LLM (taobao-mnn model folders) in libiris_mnn.so.
-            externalNativeBuild { cmake { arguments += "-DIRIS_MNN=ON" } }
-        }
-    }
+    // ETC fork v2.2.0: unified single build — merged lite (GGUF) + full (GGUF + LiteRT-LM + MNN).
+    // LiteRT-LM is runtime-gated: excluded on 32-bit (no armeabi-v7a build) and API < 24 devices.
+    // MNN is built for both ABIs. No more productFlavors.
 
     signingConfigs {
         if (keystoreProps.isNotEmpty()) {
@@ -166,8 +155,9 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.serialization.json)
 
-    // Google LiteRT-LM runtime (.litertlm models: Gemma 4, Qwen3.5, …) — full flavour only
-    "fullImplementation"(libs.litertlm.android)
+    // Google LiteRT-LM runtime (.litertlm models: Gemma 4, Qwen3.5, …) — unified build;
+    // runtime-gated on 32-bit (no armeabi-v7a) and API < 24 devices.
+    implementation(libs.litertlm.android)
     // sherpa-onnx: on-device ASR (SenseVoice), VAD (Silero) and TTS (Kokoro). Fetched by
     // scripts/fetch-deps.sh with a pinned SHA-256. The static-link build folds onnxruntime
     // into one library (≈3 MB smaller than the shared build, one less .so to load).

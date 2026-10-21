@@ -76,8 +76,9 @@ object AlpineRootfs {
     private val arch: String =
         if ((android.os.Build.SUPPORTED_ABIS.firstOrNull() ?: "").startsWith("arm64")) "aarch64" else "armv7"
 
+    // ETC fork: Tsinghua (北京清华) mirror for faster downloads in China.
     val URL: String =
-        "https://dl-cdn.alpinelinux.org/alpine/v3.24/releases/$arch/alpine-minirootfs-3.24.2-$arch.tar.gz"
+        "https://mirrors.tuna.tsinghua.edu.cn/alpine/v3.24/releases/$arch/alpine-minirootfs-3.24.2-$arch.tar.gz"
 
     // aarch64: 9bf70a7f18ea44094cbb5f70c58f9af129c8214745743db0e68e5502cc2ce773 (4_028_030 bytes)
     // armv7:   5552f1ef2398cee46ef2cf733f8f1258f39a77ad065dfd47282fc0df9fe1976c (3_257_716 bytes)
