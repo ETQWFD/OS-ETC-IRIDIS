@@ -97,7 +97,7 @@
   <main>
     <article>
       <h1>OS-ETC-IRIDIS 使用手册</h1>
-      <p class="lead">一站式安卓本地 AI 平台 · 离线运行 · 32 位 / 64 位手机都能用。本手册涵盖安装、模型、智能体、记忆、语音、局域网 API 与常见问题，内容以 v2.2.0-etc 实测行为为准。</p>
+      <p class="lead">一站式安卓本地 AI 平台 · 离线运行 · 32 位 / 64 位手机都能用。本手册涵盖安装、模型、智能体、记忆、语音、局域网 API 与常见问题，内容以 v2.2.1-etc 实测行为为准。</p>
 
       <section id="about">
         <h2><span class="no">01</span> 关于本手册与项目</h2>
@@ -235,6 +235,8 @@ for chunk in client.chat.completions.create(
         <div class="card">
           <p><strong>Q：32 位手机能装吗？</strong></p>
           <p>A：能。APK 同时内置 armeabi-v7a（32 位）与 arm64-v8a 原生库，32 位设备自动加载 32 位库；GGUF、MNN、语音、智能体终端均可正常使用。</p>
+          <p><strong>Q：点「开始使用」后闪退 / 黑屏回桌面？</strong></p>
+          <p>A：旧版（v2.2.0 及更早）在 Android 5~11 手机上会因毛玻璃特效调用 Android 12+ 专属渲染 API 而闪退。请升级到 <strong>v2.2.1-etc</strong>：该版本已从代码层面彻底修复，Android 12 以下自动关闭模糊特效（界面风格不变），欢迎页之后可正常进入聊天。若升级后仍闪退，请在「设置 › 存储空间 › 崩溃记录」导出日志发邮件给开发者。</p>
           <p><strong>Q：为什么我的设备里没有 LiteRT-LM 引擎？</strong></p>
           <p>A：LiteRT-LM 官方只有 64 位库且要求 Android 7（API 24）以上。32 位设备或 Android 5/6 会自动隐藏该引擎，GGUF 与 MNN 不受影响，功能完整可用。</p>
           <p><strong>Q：模型放哪里？为什么 App 里不显示？</strong></p>

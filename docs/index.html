@@ -206,13 +206,14 @@
     </div>
     <div class="dl-grid" style="grid-template-columns:1fr">
       <div class="dl">
-        <h3>OS-ETC-IRIDIS v2.2.0 <span class="badge badge-full">完整版 · 单包</span></h3>
-        <p>GGUF + MNN + LiteRT-LM 三引擎合一，本地语音 + 智能体 + 局域网 API，32 位与 64 位手机通用。</p>
+        <h3>OS-ETC-IRIDIS v2.2.1 <span class="badge badge-full">完整版 · 单包</span></h3>
+        <p>GGUF + MNN + LiteRT-LM 三引擎合一，本地语音 + 智能体 + 局域网 API，32 位与 64 位手机通用。v2.2.1 已彻底修复 Android 5~11（含 32 位）手机上进入聊天界面闪退的问题。</p>
         <ul>
           <li>llama.cpp（GGUF）+ MNN 引擎：32 位 / 64 位全功能可用</li>
           <li>LiteRT-LM + NPU：64 位设备自动启用，32 位 / 旧系统自动降级</li>
           <li>支持 Android 5（API 21）至 Android 16（API 36）</li>
           <li>32 位终端自动适配 ZoneTermux32，下载源默认清华镜像</li>
+          <li>修复：旧系统不再使用 Android 12+ 的毛玻璃渲染 API，避免进入聊天页即闪退</li>
         </ul>
         <a class="btn btn-primary" href="https://github.com/ETQWFD/OS-ETC-IRIDIS/releases/latest" target="_blank" rel="noopener">下载 APK（约 40 MB）</a>
       </div>
@@ -228,7 +229,7 @@
       <h2>三步开始</h2>
     </div>
     <div class="steps">
-      <div class="step"><b>01</b><h3>安装 APK</h3><p>从上方下载 Lite 或 Full 版，允许安装未知来源应用后安装。</p></div>
+      <div class="step"><b>01</b><h3>安装 APK</h3><p>从上方下载单包完整版，允许安装未知来源应用后安装（Android 5 及以上）。</p></div>
       <div class="step"><b>02</b><h3>导入模型</h3><p>在「模型管理」下载 GGUF 模型，或导入 .gguf / MNN 模型文件夹。</p></div>
       <div class="step"><b>03</b><h3>开聊</h3><p>选择模型开始对话；需要工具时打开「智能体」。</p></div>
     </div>
