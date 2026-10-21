@@ -34,13 +34,12 @@ android {
 
     defaultConfig {
         applicationId = "com.iridis"
-        // ETC fork v2.2.1: unified single build (merged lite+full). minSdk 21 (Android 5)
-        // so older phones can install; targetSdk/compileSdk 36 (Android 16). High-version
-        // APIs are runtime-guarded; LiteRT-LM (API 24+) is excluded at runtime on older devices.
+        // ETC fork v2.3.0: built-in Chinese Termux core (no external Termux needed) + expanded
+        // model catalog (18 recommended entries, small models first for 32-bit phones).
         minSdk = 21
         targetSdk = 36
-        versionCode = 182
-        versionName = "2.2.1-etc"
+        versionCode = 183
+        versionName = "2.3.0-etc"
 
         // ETC fork (OS-ETC-IRIDIS): ship both ABIs so the app runs on 32-bit (armeabi-v7a) and
         // 64-bit (arm64-v8a) phones. LiteRT-LM has no armeabi-v7a build, so the app excludes it

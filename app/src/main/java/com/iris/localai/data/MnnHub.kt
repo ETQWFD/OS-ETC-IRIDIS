@@ -168,12 +168,30 @@ class MnnHub(private val repo: ModelRepository) {
     fun clearError() { if (!_state.value.active) _state.value = State() }
 
     companion object {
-        /** 1.12.1: the user's picks, sizes checked on huggingface.co 2026-10-17. LiteRT first (GPU). */
+        /**
+         * ETC fork 2.3.0: expanded catalog — 16 entries verified live on hf-mirror.com 2026-10-21.
+         * Small models first so 32-bit / low-RAM phones always find something that runs.
+         * LiteRT first (GPU). GGUF = llama.cpp backend; MNN = MNN backend.
+         */
         val RECOMMENDED = listOf(
             "litert-community/gemma-4-E2B-it-litert-lm" to "LiteRT · 约 2.4 GB · 推荐先试",
             "litert-community/gemma-4-E4B-it-litert-lm" to "LiteRT · 约 3.4 GB · 更聪明",
+            "taobao-mnn/Qwen3-0.6B-MNN" to "MNN · 约 0.6 GB · 最轻量，32 位也流畅",
+            "Qwen/Qwen2.5-0.5B-Instruct-GGUF" to "GGUF · 约 0.5 GB · 32 位极速",
+            "unsloth/DeepSeek-R1-Distill-Qwen-1.5B-GGUF" to "GGUF · 约 1.1 GB · 推理强，32 位首选",
+            "Qwen/Qwen2.5-1.5B-Instruct-GGUF" to "GGUF · 约 1 GB · 32 位首选",
+            "taobao-mnn/Qwen3-1.7B-MNN" to "MNN · 约 1.3 GB",
+            "bartowski/Llama-3.2-1B-Instruct-GGUF" to "GGUF · 约 1 GB",
+            "Qwen/Qwen2.5-3B-Instruct-GGUF" to "GGUF · 约 2 GB · 均衡之选",
+            "bartowski/Llama-3.2-3B-Instruct-GGUF" to "GGUF · 约 2 GB",
+            "taobao-mnn/Qwen3-4B-MNN" to "MNN · 约 2.7 GB",
             "taobao-mnn/Qwen3.5-4B-Claude-4.6-Opus-Reasoning-Distilled-MNN" to "MNN · 约 2.7 GB · 推理强",
-            "taobao-mnn/Qwen3.5-9B-MNN" to "MNN · 约 6.8 GB · 最强，需大内存",
+            "bartowski/gemma-2-2b-it-GGUF" to "GGUF · 约 1.6 GB · 谷歌 Gemma",
+            "bartowski/Phi-3-mini-4k-instruct-GGUF" to "GGUF · 约 2.2 GB · 微软 Phi-3",
+            "Qwen/Qwen2.5-7B-Instruct-GGUF" to "GGUF · 约 4.5 GB · 需大内存",
+            "TheBloke/Mistral-7B-Instruct-v0.2-GGUF" to "GGUF · 约 4.4 GB · Mistral 7B",
+            "taobao-mnn/Qwen3-14B-MNN" to "MNN · 约 10 GB · 最强，需大内存",
+            "taobao-mnn/Qwen3.5-9B-MNN" to "MNN · 约 6.8 GB · 需大内存",
         )
 
         /**

@@ -277,9 +277,16 @@ class AgentContainer(context: Context) {
 
     /** 1.12.0: Alpine under PRoot, with the workspace bound at /workspace. */
     val prootShell by lazy { ProotShell(appContextForTools) { sandbox.root } }
+    /** ETC fork 2.3.0: built-in Chinese Termux core (armeabi-v7a) under PRoot — no external Termux needed. */
+    val termuxCoreShell by lazy { TermuxCoreShell(appContextForTools) { sandbox.root } }
 
     fun shell(): Pair<ShellRunner, CommandBackend> = when (settings.current.backend) {
-        CommandBackend.TERMUX -> termuxShell to CommandBackend.TERMUX
+        // ETC fork: prefer the external Termux (full Linux + RUN_COMMAND), otherwise fall back to
+        // the built-in Chinese core so the user never has to install Termux by hand.
+        CommandBackend.TERMUX -> {
+            val extOk = TermuxBridge.isInstalled(appContextForTools) && TermuxBridge.hasPermission(appContextForTools)
+            if (extOk) termuxShell to CommandBackend.TERMUX else termuxCoreShell to CommandBackend.TERMUX
+        }
         CommandBackend.PROOT -> prootShell to CommandBackend.PROOT
         CommandBackend.BUILTIN -> AndroidShell to CommandBackend.BUILTIN
     }

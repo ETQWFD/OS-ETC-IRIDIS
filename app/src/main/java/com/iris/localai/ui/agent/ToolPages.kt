@@ -73,7 +73,7 @@ object ToolPageText {
     const val TERMINAL_NAV = "在工作区里运行命令；可接入 Termux 获得完整 Linux"
     const val BROWSER_NAV = "智能体使用的内置浏览器；可在这里查看或手动登录"
     const val BACKEND = "命令环境"
-    const val BACKEND_NOTE = "内置：系统自带 sh + toybox，只能在工作区里操作。Termux：完整 Linux（bash、pkg、python、git…），需安装 Termux，并在 Termux 里运行一次下面的命令；智能体的「运行命令」也会改用它，每次仍会询问。"
+    const val BACKEND_NOTE = "内置：系统自带 sh + toybox，只能在工作区里操作。Termux：完整 Linux（bash、apt、python、git…）。未安装外部 Termux 时会自动使用内置中文核心（一键下载安装，无需另外装应用）；已授权外部 Termux 则优先用完整版。智能体的「运行命令」也会改用它。"
     const val ALPINE_NOTE = "Alpine 在 IRIDIS 内部运行（PRoot，无需 root），能用 apk 装 python、git、nodejs 等。工作区挂在 /workspace；cd 和 export 会保留到下一条命令。单条命令最长 120 秒，后台进程随命令结束。"
     const val BROWSER_NOTE = "智能体用的就是这个浏览器（Cookie 只保存在 IRIDIS 里，不影响你的其他浏览器）。需要登录的网站可以先在这里手动登录。智能体的「浏览器」工具默认关闭，开启后每次询问。"
 }
@@ -90,8 +90,18 @@ fun TerminalPage(onBack: () -> Unit, onOpenFiles: (() -> Unit)? = null) {
     var running by remember { mutableStateOf(false) }
     var termuxProblem by remember { mutableStateOf(TermuxBridge.problem(context)) }
     val alpine by AlpineRootfs.state.collectAsStateWithLifecycle()
-    LaunchedEffect(Unit) { AlpineRootfs.refresh(context) }
+    val coreState by com.iris.localai.agent.TermuxCore.state.collectAsStateWithLifecycle()
+    LaunchedEffect(Unit) {
+        AlpineRootfs.refresh(context)
+        com.iris.localai.agent.TermuxCore.refresh(context)
+    }
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { termuxProblem = TermuxBridge.problem(context) }
+    val coreInstall = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { termuxProblem = TermuxBridge.problem(context) }
+    fun installCore() {
+        scope.launch {
+            withContext(Dispatchers.IO) { com.iris.localai.agent.TermuxCore.install(context) }
+        }
+    }
     val list = rememberLazyListState()
     val c = Iris.colors
     val reduceMotion = com.iris.localai.ui.theme.LocalReduceMotion.current
@@ -131,7 +141,12 @@ fun TerminalPage(onBack: () -> Unit, onOpenFiles: (() -> Unit)? = null) {
                     SettingsGroup {
                         Column(Modifier.fillMaxWidth().padding(bottom = 14.dp)) {
                             SettingsRow(ToolPageText.BACKEND, subtitle = when (s.backend) {
-                                CommandBackend.TERMUX -> termuxProblem ?: "Termux 已就绪"
+                                // ETC fork: external Termux first, otherwise the built-in Chinese core.
+                                CommandBackend.TERMUX -> when {
+                                    termuxProblem == null -> "Termux 已就绪"
+                                    com.iris.localai.agent.TermuxCore.isInstalled(context) -> "内置 Termux 中文核心 v${com.iris.localai.agent.TermuxCore.VERSION} · 无需外部应用"
+                                    else -> "未安装：点击下方一键下载内置 Termux"
+                                }
                                 CommandBackend.PROOT -> if (alpine == AlpineRootfs.State.Ready) "Alpine ${AlpineRootfs.VERSION} · 工作区在 /workspace" else "Alpine 未安装"
                                 CommandBackend.BUILTIN -> "工作区：" + agent.sandbox.root.path
                             })
@@ -142,10 +157,30 @@ fun TerminalPage(onBack: () -> Unit, onOpenFiles: (() -> Unit)? = null) {
                                 Modifier.fillMaxWidth().padding(horizontal = IrisDimens.rowPadding),
                             )
                         }
+                        // ETC fork: one-click install of the built-in Chinese Termux core.
                         com.iris.localai.ui.components.RevealSection(s.backend == CommandBackend.TERMUX && termuxProblem != null) {
                             Divider()
                             if (!TermuxBridge.isInstalled(context)) {
-                                SettingsRow("下载 Termux", subtitle = "GitHub 或 F-Droid 版（Google Play 版过旧，不支持）", onClick = {
+                                val coreReady = com.iris.localai.agent.TermuxCore.isInstalled(context)
+                                if (!coreReady) {
+                                    val progress = coreState is com.iris.localai.agent.TermuxCore.State.Downloading
+                                    SettingsRow(
+                                        when (coreState) {
+                                            is com.iris.localai.agent.TermuxCore.State.Downloading ->
+                                                "正在下载内置 Termux 中文核心…（${(coreState as com.iris.localai.agent.TermuxCore.State.Downloading).done / 1024 / 1024} / ${(coreState as com.iris.localai.agent.TermuxCore.State.Downloading).total / 1024 / 1024} MB）"
+                                            com.iris.localai.agent.TermuxCore.State.Unpacking -> "正在解压安装…"
+                                            is com.iris.localai.agent.TermuxCore.State.Failed -> "安装失败：${(coreState as com.iris.localai.agent.TermuxCore.State.Failed).message}"
+                                            else -> "一键安装内置 Termux（中文 · 32 位 · 无需外部应用）"
+                                        },
+                                        subtitle = "从本项目 GitHub Release 下载中文核心（约 27 MB），安装后即可直接使用",
+                                        onClick = {
+                                            if (coreState !is com.iris.localai.agent.TermuxCore.State.Downloading && coreState != com.iris.localai.agent.TermuxCore.State.Unpacking) installCore()
+                                        },
+                                    )
+                                } else {
+                                    SettingsRow("内置 Termux 中文核心已就绪", subtitle = "v${com.iris.localai.agent.TermuxCore.VERSION} · 命令直接在此运行，无需外部 Termux")
+                                }
+                                SettingsRow("仍想用外部 Termux？", subtitle = "GitHub 或 F-Droid 版（Google Play 版过旧，不支持）", onClick = {
                                     runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(TermuxBridge.DOWNLOAD_URL)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
                                 })
                             } else {
@@ -154,7 +189,11 @@ fun TerminalPage(onBack: () -> Unit, onOpenFiles: (() -> Unit)? = null) {
                         }
                     }
                     com.iris.localai.ui.components.RevealSection(s.backend == CommandBackend.TERMUX) {
-                        GroupFootnote("首次使用请在 Termux 里运行：\n" + TermuxBridge.SETUP, monospace = true)
+                        GroupFootnote(
+                            if (TermuxBridge.isInstalled(context)) "首次使用请在 Termux 里运行：\n" + TermuxBridge.SETUP
+                            else "已选择 Termux 后端：未检测到外部 Termux 时，命令会自动改用内置中文核心（无需安装任何东西）；检测到并授权外部 Termux 后自动切换到完整版。内置核心软件源为北京清华 TUNA 镜像。",
+                            monospace = true,
+                        )
                     }
                     com.iris.localai.ui.components.RevealSection(s.backend == CommandBackend.PROOT) { AlpineSection(alpine) }
                     GroupFootnote(ToolPageText.BACKEND_NOTE)
