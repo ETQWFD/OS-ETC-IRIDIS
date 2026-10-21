@@ -145,7 +145,8 @@ fun Modifier.glass(
             val blurPx = style.blurRadius.dp.toPx() * quality.blurScale
             val fPad = ceil(blurPx * 1.5f).toInt()
             val fSize = IntSize(((size.width + fPad * 2) / ds).toInt().coerceAtLeast(1), ((size.height + fPad * 2) / ds).toInt().coerceAtLeast(1))
-            val frostedEffect = if (ok) blurVibrancy(blurPx / ds, style.vibrancy).asComposeRenderEffect() else null
+            // ETC fork: RenderEffect is API 31+ — double gate so old devices never touch it.
+            val frostedEffect = if (ok && android.os.Build.VERSION.SDK_INT >= 31) blurVibrancy(blurPx / ds, style.vibrancy).asComposeRenderEffect() else null
 
             onDrawBehind {
                 if (ok && source != null && frostedEffect != null) {
@@ -178,6 +179,16 @@ private class PanelState {
 
 /** Blur followed by a saturation boost: the "vibrancy" that makes colours behind glass glow through. */
 internal fun blurVibrancy(blurPx: Float, saturation: Float): RenderEffect {
+    // ETC fork: RenderEffect is API 31+. This function must only be reached when
+    // GlassPolicy.resolve(..., sdkInt) returned a FROSTED quality, which it never does
+    // below API 31 (see GlassPolicy). Keep the guard here too, so a future caller can't
+    // crash old phones even if it skips the policy.
+    if (android.os.Build.VERSION.SDK_INT < 31) {
+        // Unreachable in the current UI; satisfy the non-null contract without touching
+        // RenderEffect by returning a plain color filter chain (still no blur; harmless).
+        val cm = ColorMatrix().apply { setSaturation(saturation) }
+        return RenderEffect.createColorFilterEffect(ColorMatrixColorFilter(cm))
+    }
     val r = blurPx.coerceAtLeast(0.5f)
     val blur = RenderEffect.createBlurEffect(r, r, Shader.TileMode.CLAMP)
     if (saturation == 1f) return blur

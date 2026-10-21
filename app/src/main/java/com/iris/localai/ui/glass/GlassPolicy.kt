@@ -53,6 +53,11 @@ object GlassPolicy {
     /**
      * @param level user setting 0 省电 / 1 均衡 / 2 华丽
      * @param glassSwitch the pre-1.7.1 "毛玻璃" switch (off → 省电)
+     * @param sdkInt Build.VERSION.SDK_INT — ETC fork (OS-ETC-IRIDIS): the frosted blur uses
+     *   android.graphics.RenderEffect, which only exists on Android 12 (API 31)+. On older
+     *   devices — including all 32-bit-era phones — forcing the blur crashed the UI
+     *   (NoSuchMethodError) the moment a glass surface (composer, top bar) composed, i.e.
+     *   right after the welcome screen's 开始使用. We drop to translucent tint there.
      *
      * 均衡 and 华丽 are both frosted glass; they differ only in blur resolution
      * (华丽 downsample 1 / 2, 均衡 2 / 4) and blur strength, and only 华丽 blurs behind dialogs.
@@ -63,7 +68,11 @@ object GlassPolicy {
         powerSave: Boolean = false,
         thermalStatus: Int = 0,
         generating: Boolean = false,
+        sdkInt: Int = Int.MAX_VALUE,
     ): GlassQuality {
+        // ETC fork: RenderEffect blur is API 31+. Anything below that gets a plain translucent
+        // tint — same layout, no blur, no crash.
+        if (sdkInt < 31) return TRANSLUCENT.copy(downgradedBy = GlassQuality.Downgrade.USER_OFF)
         val lvl = if (!glassSwitch) LEVEL_ECO else level.coerceIn(LEVEL_ECO, LEVEL_RICH)
         if (lvl == LEVEL_ECO) return TRANSLUCENT.copy(downgradedBy = if (!glassSwitch) GlassQuality.Downgrade.USER_OFF else GlassQuality.Downgrade.NONE)
         if (powerSave) return TRANSLUCENT.copy(downgradedBy = GlassQuality.Downgrade.POWER_SAVE)

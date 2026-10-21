@@ -99,6 +99,7 @@ class MainActivity : ComponentActivity() {
                 powerSave = powerSave,
                 thermalStatus = thermal,
                 generating = streaming,
+                sdkInt = android.os.Build.VERSION.SDK_INT,
             )
             IrisTheme(
                 mode = settings.themeMode, glassQuality = quality, reduceMotion = reduceMotion,
