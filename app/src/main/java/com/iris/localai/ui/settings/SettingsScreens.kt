@@ -35,6 +35,7 @@ import androidx.compose.material.icons.outlined.Storage
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -526,6 +527,7 @@ fun PerformancePage(vm: SettingsViewModel, onBack: () -> Unit, onOpen: (Settings
 @Composable
 fun AboutPage(onBack: () -> Unit) {
     val c = Iris.colors
+    val context = LocalContext.current
     // 1.14.7: 许可证全文 is routed inside the About page (no new top-level route).
     var showLicenses by rememberSaveable { mutableStateOf(false) }
     if (showLicenses) {
@@ -554,6 +556,53 @@ fun AboutPage(onBack: () -> Unit) {
                 Text(
                     ABOUT_PRIVACY,
                     style = IrisType.secondary, color = c.textSecondary, textAlign = TextAlign.Center,
+                )
+            }
+            // ETC fork v2.3.1: check for updates (GitHub Releases/latest, browser download).
+            var updateChecking by remember { mutableStateOf(false) }
+            var updateResult by remember { mutableStateOf<String?>(null) }
+            var updateTag by remember { mutableStateOf<String?>(null) }
+            var updateApkUrl by remember { mutableStateOf<String?>(null) }
+            val scope = rememberCoroutineScope()
+            SectionTitle("更新")
+            SettingsGroup {
+                val subtitle = when {
+                    updateChecking -> "正在检查 GitHub Release…"
+                    updateResult == "new" -> "发现新版本 ${updateTag ?: ""}，点击下载 APK"
+                    updateResult == "latest" -> "已是最新版本"
+                    updateResult != null -> "$updateResult（点击重试）"
+                    else -> "点击检查 GitHub 上是否有新版本"
+                }
+                SettingsRow(
+                    "检查更新",
+                    subtitle = subtitle,
+                    onClick = {
+                        if (updateChecking) return@SettingsRow
+                        if (updateResult == "new" && updateApkUrl != null) {
+                            Updater.openDownload(context, updateApkUrl, updateTag ?: "")
+                            return@SettingsRow
+                        }
+                        updateChecking = true
+                        scope.launch {
+                            val r = Updater.check()
+                            updateChecking = false
+                            when {
+                                r.error != null -> { updateResult = r.error }
+                                Updater.hasNewer(BuildConfig.VERSION_NAME, r.tag) -> {
+                                    updateResult = "new"; updateTag = r.tag; updateApkUrl = r.apkUrl
+                                }
+                                else -> updateResult = "latest"
+                            }
+                        }
+                    },
+                    trailing = {
+                        if (updateChecking) {
+                            androidx.compose.material3.CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                strokeWidth = 2.dp,
+                            )
+                        } else Chevron()
+                    },
                 )
             }
             SectionTitle("许可证")
