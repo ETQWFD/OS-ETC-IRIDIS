@@ -22,6 +22,14 @@ import java.net.URL
 object Updater {
     const val REPO = "ETQWFD/OS-ETC-IRIDIS"
     private const val API = "https://api.github.com/repos/$REPO/releases/latest"
+    /** ETC fork v2.3.2: GitHub anonymous API is rate-limited (60/h/IP) and slow in China —
+     * try the API first, then ghproxy mirrors of it. */
+    private val CHANNELS = listOf(
+        API,
+        "https://ghproxy.net/$API",
+        "https://gh.api.99988866.xyz/$API",
+        "https://mirror.ghproxy.com/$API",
+    )
     private val json = Json { ignoreUnknownKeys = true }
 
     @Serializable
@@ -38,31 +46,36 @@ object Updater {
 
     data class Result(val tag: String? = null, val apkUrl: String? = null, val error: String? = null)
 
-    /** One round-trip to GitHub Releases/latest. Never throws. */
+    /** One round-trip to GitHub Releases/latest over the mirror chain. Never throws. */
     suspend fun check(): Result = withContext(Dispatchers.IO) {
-        try {
-            val conn = (URL(API).openConnection() as HttpURLConnection).apply {
-                connectTimeout = 15_000
-                readTimeout = 15_000
-                setRequestProperty("User-Agent", "OS-ETC-IRIDIS/${BuildConfig.VERSION_NAME}")
-                setRequestProperty("Accept", "application/vnd.github+json")
-            }
+        var lastErr: String? = null
+        for (url in CHANNELS) {
             try {
-                val code = conn.responseCode
-                if (code != HttpURLConnection.HTTP_OK) {
-                    return@withContext Result(error = "检查失败（HTTP $code）")
+                val conn = (URL(url).openConnection() as HttpURLConnection).apply {
+                    connectTimeout = 12_000
+                    readTimeout = 15_000
+                    setRequestProperty("User-Agent", "OS-ETC-IRIDIS/${BuildConfig.VERSION_NAME}")
+                    setRequestProperty("Accept", "application/vnd.github+json")
                 }
-                val release = json.decodeFromString<Release>(
-                    conn.inputStream.bufferedReader().use { it.readText() },
-                )
-                val apk = release.assets.firstOrNull { it.name.endsWith(".apk", ignoreCase = true) }?.url
-                Result(tag = release.tagName.ifBlank { null }, apkUrl = apk)
-            } finally {
-                conn.disconnect()
+                try {
+                    val code = conn.responseCode
+                    if (code != HttpURLConnection.HTTP_OK) {
+                        lastErr = "HTTP $code"
+                        continue
+                    }
+                    val release = json.decodeFromString<Release>(
+                        conn.inputStream.bufferedReader().use { it.readText() },
+                    )
+                    val apk = release.assets.firstOrNull { it.name.endsWith(".apk", ignoreCase = true) }?.url
+                    return@withContext Result(tag = release.tagName.ifBlank { null }, apkUrl = apk)
+                } finally {
+                    conn.disconnect()
+                }
+            } catch (t: Throwable) {
+                lastErr = t.message ?: "网络错误"
             }
-        } catch (t: Throwable) {
-            Result(error = t.message ?: "网络错误")
         }
+        Result(error = lastErr ?: "无法连接 GitHub")
     }
 
     /** Open the APK direct link in the browser; falls back to the Release page. */
