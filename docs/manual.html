@@ -97,7 +97,7 @@
   <main>
     <article>
       <h1>OS-ETC-IRIDIS 使用手册</h1>
-      <p class="lead">一站式安卓本地 AI 平台 · 离线运行 · 32 位 / 64 位手机都能用。本手册涵盖安装、模型、智能体、记忆、语音、局域网 API 与常见问题，内容以 v2.3.1-etc 实测行为为准。</p>
+      <p class="lead">一站式安卓本地 AI 平台 · 离线运行 · 32 位 / 64 位手机都能用。本手册涵盖安装、模型、智能体、记忆、语音、局域网 API 与常见问题，内容以 v2.3.2-etc 实测行为为准。</p>
 
       <section id="about">
         <h2><span class="no">01</span> 关于本手册与项目</h2>
@@ -167,7 +167,7 @@
         <p>在对话页开启「智能体」后，模型可以调用工具完成任务：</p>
         <ul>
           <li><strong>文件工具</strong>：在工作区内读写、移动、删除文件（沙箱限制在工作区内，路径经检查）。</li>
-          <li><strong>Termux 完整 Linux（内置）</strong>：v2.3.1 起内置「Termux 中文核心」（32 位，源自官方 bootstrap，已汉化：中文欢迎语/提示符/别名，软件源为北京清华 TUNA 镜像）。在 设置 › 智能体 › 终端与浏览器 › 命令环境 选择 Termux，点「一键安装内置 Termux」即可，<strong>无需另外下载安装任何终端应用</strong>。已安装并授权外部 Termux 时自动优先使用完整版。</li>
+          <li><strong>Termux 完整 Linux（内置）</strong>：v2.3.2 起内置「Termux 中文核心」（32 位，源自官方 bootstrap，已汉化：中文欢迎语/提示符/别名，软件源为北京清华 TUNA 镜像）。在 设置 › 智能体 › 终端与浏览器 › 命令环境 选择 Termux，点「一键安装内置 Termux」即可，<strong>无需另外下载安装任何终端应用</strong>。已安装并授权外部 Termux 时自动优先使用完整版。</li>
           <li><strong>内置 Alpine（可选）</strong>：<code>Linux 终端</code> 也提供 proot + Alpine Linux 环境，32 位设备自动使用 armv7 根文件系统，64 位使用 aarch64；Alpine 根文件系统默认从北京清华镜像源下载。</li>
           <li><strong>联网搜索</strong>：模型主动请求后经你确认才联网（默认不联网）。</li>
           <li><strong>定时任务</strong>：可安排周期任务（如每天提醒），任务执行前会先征得确认。</li>
@@ -233,12 +233,14 @@ for chunk in client.chat.completions.create(
       <section id="faq">
         <h2><span class="no">11</span> 常见问题</h2>
         <div class="card">
+          <p><strong>Q：如何检查更新？</strong></p>
+          <p>A：设置 › 关于 › 检查更新。App 会自动查询本项目 GitHub Releases 最新版并与当前版本对比；发现新版本点击即可在浏览器下载 APK 安装。显示「已是最新版本」则无需更新。</p>
           <p><strong>Q：32 位手机能装吗？</strong></p>
-          <p>A：能。APK 同时内置 armeabi-v7a（32 位）与 arm64-v8a 原生库，32 位设备自动加载 32 位库；GGUF、MNN、语音、智能体终端均可正常使用。</p>
+          <p>A：能。APK 同时内置 armeabi-v7a（32 位）与 arm64-v8a 原生库，32 位设备自动加载 32 位库；GGUF、MNN、语音、智能体终端均可正常使用。32 位机型模型加载已做优化（自动限制线程与上下文），0.6B / 1.5B 模型可流畅运行。</p>
           <p><strong>Q：点「开始使用」后闪退 / 黑屏回桌面？</strong></p>
-          <p>A：旧版（v2.2.0 及更早）在 Android 5~11 手机上会因毛玻璃特效调用 Android 12+ 专属渲染 API 而闪退。请升级到 <strong>v2.3.1-etc</strong>：该系列已从代码层面彻底修复，Android 12 以下自动关闭模糊特效（界面风格不变），欢迎页之后可正常进入聊天。若升级后仍闪退，请在「设置 › 存储空间 › 崩溃记录」导出日志发邮件给开发者。</p>
+          <p>A：旧版（v2.2.0 及更早）在 Android 5~11 手机上会因毛玻璃特效调用 Android 12+ 专属渲染 API 而闪退。请升级到 <strong>v2.3.2-etc</strong>：该系列已从代码层面彻底修复，Android 12 以下自动关闭模糊特效（界面风格不变），欢迎页之后可正常进入聊天。若升级后仍闪退，请在「设置 › 存储空间 › 崩溃记录」导出日志发邮件给开发者。</p>
           <p><strong>Q：一定要另外下载 Termux 吗？</strong></p>
-          <p>A：不需要。v2.3.1 起 App 内置「Termux 中文核心」，在 设置 › 智能体 › 终端与浏览器 › 命令环境选 Termux，点一键安装（约 27 MB，从本项目 GitHub Release 下载）即可直接使用；32 位与 64 位手机都支持。已安装并授权外部 Termux 时自动优先用完整版。</p>
+          <p>A：不需要。v2.3.2 起 App 内置「Termux 中文核心」，在 设置 › 智能体 › 终端与浏览器 › 命令环境选 Termux，点一键安装（约 27 MB，从本项目 GitHub Release 下载）即可直接使用；32 位与 64 位手机都支持。已安装并授权外部 Termux 时自动优先用完整版。</p>
           <p><strong>Q：有哪些模型可以下载？</strong></p>
           <p>A：模型中心提供 18 个推荐模型（Qwen2.5/3、Llama 3.2、DeepSeek-R1 蒸馏、Gemma 2、Phi-3、Mistral 等，GGUF / MNN / LiteRT-LM 三种格式），小模型在前，32 位手机建议选 4B 以下；也支持从文件夹导入模型。</p>
           <p><strong>Q：为什么我的设备里没有 LiteRT-LM 引擎？</strong></p>
