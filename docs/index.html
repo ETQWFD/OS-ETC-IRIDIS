@@ -206,13 +206,13 @@
     </div>
     <div class="dl-grid" style="grid-template-columns:1fr">
       <div class="dl">
-        <h3>OS-ETC-IRIDIS v2.3.2 <span class="badge badge-full">完整版 · 单包</span></h3>
-        <p>GGUF + MNN + LiteRT-LM 三引擎合一，本地语音 + 智能体 + 局域网 API，32 位与 64 位手机通用。v2.3.2 新增「检查更新」功能，内置 Termux 中文核心，终端不再需要另外下载安装。</p>
+        <h3>OS-ETC-IRIDIS v2.3.3 <span class="badge badge-full">完整版 · 单包</span></h3>
+        <p>GGUF + MNN + LiteRT-LM 三引擎合一，本地语音 + 智能体 + 局域网 API，32 位与 64 位手机通用。v2.3.3 根治 32 位加载模型闪退，内置 Termux 中文核心经 Pages CDN 加速下载。</p>
         <ul>
-          <li>检查更新：设置 › 关于 › 检查更新，自动对比 GitHub 最新版，发现新版一键下载 APK</li>
-          <li>内置 Termux 中文核心（32 位）：一键下载安装，无需外部应用；下载走多镜像自动切换（GitHub + 3 个加速镜像）</li>
+          <li>32 位加载模型闪退根治：加载前内存预检，不足时明确提示（不再被杀进程/闪退）；启动预加载同源修复</li>
+          <li>内置 Termux 中文核心（32 位）：App 内一键安装；下载优先走 GitHub Pages CDN（国内快），多镜像自动切换</li>
+          <li>检查更新：设置 › 关于 › 检查更新，自动对比最新版并一键下载 APK</li>
           <li>模型推荐库 18 个（Qwen / Llama / DeepSeek / Gemma / Phi-3 / Mistral），小模型优先适配 32 位</li>
-          <li>32 位模型加载 OOM 修复：armeabi-v7a 自动限制线程与上下文，0.6B/1.5B 流畅运行</li>
           <li>llama.cpp（GGUF）+ MNN 引擎：32 位 / 64 位全功能可用；LiteRT-LM + NPU：64 位自动启用</li>
           <li>支持 Android 5（API 21）至 Android 16（API 36）</li>
         </ul>
