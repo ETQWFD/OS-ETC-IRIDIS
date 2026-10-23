@@ -22,8 +22,13 @@ object TermuxCore {
     const val VERSION = "1.0.0"
     const val TAG = "v1.0.0"
 
-    /** ETC fork v2.3.1: multiple mirrors so China users can always download. Tried in order. */
+    /**
+     * ETC fork v2.3.3: dedicated Pages repo (ETQWFD/OS-ETC-Termux-Core) hosts the tarball —
+     * GitHub Pages has fast CDN reach in China, so it is tried first; GitHub Release and
+     * ghproxy mirrors are the fallbacks.
+     */
     val URLS: List<String> = listOf(
+        "https://etqwfd.github.io/OS-ETC-Termux-Core/os-etc-termux-core-arm-zh.tar.gz",
         "https://github.com/ETQWFD/OS-ETC-IRIDIS/releases/download/$TAG/os-etc-termux-core-arm-zh.tar.gz",
         "https://ghproxy.net/https://github.com/ETQWFD/OS-ETC-IRIDIS/releases/download/$TAG/os-etc-termux-core-arm-zh.tar.gz",
         "https://gh.api.99988866.xyz/https://github.com/ETQWFD/OS-ETC-IRIDIS/releases/download/$TAG/os-etc-termux-core-arm-zh.tar.gz",

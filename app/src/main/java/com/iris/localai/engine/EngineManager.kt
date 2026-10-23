@@ -291,6 +291,21 @@ class EngineManager(
             engine = null
             loadedPlan = null
             loadedPreferred = null
+            // ETC fork v2.3.3: 32-bit devices die with a silent process kill (C++ OOM abort,
+            // which the JVM cannot catch) when loading a model with too little free RAM.
+            // Pre-flight check so the user gets a clear message instead of a crash.
+            val is32Bit = (android.os.Build.SUPPORTED_ABIS.firstOrNull() ?: "").startsWith("armeabi")
+            if (is32Bit) {
+                val mi = android.app.ActivityManager.MemoryInfo()
+                runCatching { appContext.getSystemService(android.app.ActivityManager::class.java)?.getMemoryInfo(mi) }
+                val need = (model.sizeBytes * 2.2 + 300L * 1024 * 1024).toLong()
+                if (mi.availMem != 0L && mi.availMem < need) {
+                    throw EngineException(
+                        "32 位设备可用内存不足（剩 ${mi.availMem / 1048576} MB，加载需要约 ${need / 1048576} MB）。" +
+                            "请关闭后台应用后重试，或换用更小的模型（如 Qwen3-0.6B / Qwen2.5-0.5B）。",
+                    )
+                }
+            }
             val since = System.currentTimeMillis()
             abandonedLoad = 0L
             fun abandoned() = abandonedLoad == since
